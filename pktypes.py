@@ -1,4 +1,8 @@
 import random
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 class Card:
 
@@ -22,25 +26,37 @@ class Pot:
     
     def __init__(self, table):
         self.potValue=0
-        self.raised={}
+        self.bets=[]   #Array of bet objects for given betting round, at end of betting rnd is checked for side pots then cleared
+        self.sidePots=[]
         self.table=table
-        self.actionRemains=False
-        self.clearRaise()
     
-    def raisePot(self,raiser,amount,allIn):
-        self.raised['isRaised']=True
-        self.raised['raisedBy']=raiser
-        self.raised['amount']=amount
-        self.raised['allInFlag']=allIn
+    def createSidePot(self):
+        pass
     
-    def clearRaise(self):
-        self.raised={'isRaised':False, 'raisedBy':None, 'raiseAmt':None, 'allInFlag':False}
+    def clearBetsForRound(self):
+        # Iterate over bets - check for side pots
+        # Update pot value
+        self.bets=[]
+        pass
     
     def __str__(self):
-        resp = "Pot Value is "+str(self.potValue)
+        resp="Bets are :"
+        for b in self.bets:
+            resp+=" - "+str(b.amount)
         return resp
-       
-
+    
+    
+class Bet:
+    
+    def __init__(self, player, amount):
+        self.raiser=player
+        self.callers=[]
+        self.closed=False
+        self.amount=amount
+    
+    def addCaller(self, caller):
+        self.callers.append(caller)
+        
 class Deck:
     
     def __init__(self):
@@ -76,30 +92,17 @@ class Deck:
               
 class Player:
     
-    @classmethod
-    def classmthd(cls):
-        return 'class method called'
-    
     def __init__(self, usrId, playname, bank, stack):
         self.usrId=usrId
         self.bank=bank
-        self._stack=stack
+        self.stack=stack
         self.playname=playname
         self.atTable=False
         self.seated=False
         self.seatNum=None
         self.hand=[]
         self.folded=False
-        self.raised=False
-        
-    @property
-    def stack(self):
-        return self._stack
-    
-    @stack.setter
-    def changeStackAmt(self, increment):
-        self._stack += increment 
-        
+                
     @property
     def humanReadableHand(self):
         readableHand=[]
@@ -113,64 +116,90 @@ class Player:
     def clearHand(self):
         self.hand=[]
         self.folded=False
-        self.raised=False
     
-    def getAction(self, table, pot):
-        options=['Fold']
-        isPotRaised = pot.raised.isRaised
-        if isPotRaised:
-            if pot.raised.raisedBy == self:
-                pot.actionRemains = False
-                return
-            else:
-                options.append('Call', 'reraise')
+    def getAction(self, pot):
+        if self.folded:
+            logging.debug("Player "+self.playname+" has already folded")
+            return
+        amount=0
+        noAction = False
+        if not pot.bets:   # No previous bets
+            noAction = True
+            logging.info("Check to you, "+self.playname+". Bet or check")
+        else:
+            noAction = False
+            logging.info("Raised to "+self.playname+". Fold, Call or Raise") 
+        action, amount = input("Enter action and amount: ").split() 
+        decision = getattr(self, action)
+        decision(amount, pot)
+        return
         
-        action = input("your options are:"+str(options))
-        pass
-        #options=['check', 'raise', 'fold', 'call']
-        
-    def Raise(self, amount, pot):
-        self.changeStackAmt(-amount)
-        pot.potVaue += amount
-        pot.raised = {'isRaised':True, 'raisedBy':self, 'raiseAmt':amount, 'allInFlag':False}
+    def Raise(self, betAmount, pot):
+        ## Call previous bets
+        upstreamBetAmt = self.Call(pot)
+        logging.debug("RAISING")
+        incrementalBet = betAmount - upstreamBetAmt
+        newbet = Bet(self, betAmount)
+        newbet.addCaller(self)
+        self.stack -= incrementalBet
+        pot.potValue += incrementalBet
+        pot.bets.insert(0,newbet)
+        self.atTable.startingPlayer = self
         
     def Call(self, amount, pot):
-        pass
+        if pot.bets:
+            upstreamBet = pot.bets[0]
+            upstreamBetAmt = upstreamBet.amount
+            logging.debug("CALLING PREV BET")
+        else:
+            upstreamBetAmt = 0
+            logging.debug("NO PREV BET")
+        self.stack -= upstreamBetAmt
+        pot.potValue += upstreamBetAmt
+        for bet in pot.bets:
+            if self not in bet.callers:
+                bet.addCaller(self)
+        return upstreamBetAmt
+    
+    def Check(self, amount, pot):
+        logging.debug("CHECKING")
+        return
+    
+    def Fold(self, amount, pot):
+        self.folded=True
+        FOLD LOWER LEVEL BETS
+        return
         
     def RaiseAllIn(self, amount, pot):
         pass
     
     def CallAllIn(self, amount, pot):
         pass
-    
-    def Fold(self, amount, pot):
-        self.folded=True
-        pass
-        
+
     def sitDown(self):
         if self.atTable:
             self.seated=True
             seatNum = self.atTable.seatPlayer(self)
             self.seatNum = seatNum
         else:
-            print("Need to be added to a table first")
+            logging.warning("Need to be in the lobby first")
         
     def standUp(self):
         self.atTable.unSeatPlayer(self)
         self.seated=False
         self.seatNum=None
         
-    def joinTable(self):
+    def joinLobby(self):
         pass
     
-    def leaveTable(self):
+    def leaveLobby(self):
         if self.seated:
             self.standUp()
-        self.atTable.removePlayerFromTable(self)
+        self.atTable.removePlayerFromLobby(self)
         self.atTable=False
         
     def __str__(self):
-        resp = self.playname+" is the player and they have "+str(self._stack)+" chips"
+        resp = self.playname+" is the player and they have "+str(self.stack)+" chips"
         return resp
 
     
@@ -183,32 +212,44 @@ class Table:
         self.online=False
         self.MINPLAYERS = 3 #min number of seated players
         self.deck=Deck()
-        self.players=[]
-        self.pots=[]  #main pot and side pots for a given hand
-        self.seatedPlayers={} #key is seatnumber, value is player object
+        self.playersInLobby=[]
+        self.totalPot=0  # Value of pot from previous betting rounds for a given hand
+        self.seatedPlayersDict={} #key is seatnumber, value is player object
         self.maxseats=maxseats
         self.openSeatNums=list(range(maxseats))  #Unordered list of open seat numbers. Starts at 0
         self.buttonSeatNum=None     # Seat number for button
-        self.smallSeatNum=None  # Seat number for small blind
-        self.bigSeatNum=None    # Seat number for big blind
         self.numHands=0
-        self.actionToSeatNum=None
+        self.startingPlayer=None  
         self.bettingRound=0 #1 = preflop, 2=flop, 3=turn, 4=river
       
     @property
     def occupiedSeatNums(self):
-        seatnums = list(self.seatedPlayers.keys())
+        seatnums = list(self.seatedPlayersDict.keys())
         seatnums.sort()
         return seatnums    
      
+    @property
+    def seatedPlayers(self):
+        return list(self.seatedPlayersDict.values())  
+
+    @property
+    def buttonPlayer(self):
+        return self.seatedPlayersDict[self.buttonSeatNum] 
+    
+    @property
+    def smallBlindPlayer(self):
+        return self.getNextSeatedPlayer(self.buttonPlayer) 
+      
+    @property
+    def bigBlindPlayer(self):
+        return self.getNextSeatedPlayer(self.smallBlindPlayer) 
+        
     def startGame(self):
         self.online=True
         if(len(self.occupiedSeatNums))<self.MINPLAYERS:
-            print("Need at least 3 seated players to start")
+            logging.info("Need at least 3 seated players to start")
             return
-        self.buttonSeatNum = self.occupiedSeatNums[0]
-        self.smallSeatNum = self.getNextSeatNum(self.buttonSeatNum)
-        self.bigSeatNum= self.getNextSeatNum(self.smallSeatNum)
+        self.buttonSeatNum = self.occupiedSeatNums[-1]  #Button will move to first seat when round is reset
         return
         
     def pauseGame(self):
@@ -217,97 +258,96 @@ class Table:
     def endGame(self):
         pass
     
-    def addPlayerToTable(self, playerToAdd):
-        if playerToAdd in self.players:
-            print("Error Player already at table")
-        elif len(self.players) == self.maxseats:
-            print("Table is full")
+    def addPlayerToLobby(self, playerToAdd):
+        if playerToAdd in self.playersInLobby:
+            logging.error("Error Player already at table")
         else:
-            self.players.append(playerToAdd)
+            self.playersInLobby.append(playerToAdd)
             playerToAdd.atTable = self
             
     def seatPlayer(self, playerToSeat):
-        seatNum = self.openSeatNums.pop()
-        self.seatedPlayers[seatNum] = playerToSeat
-        return seatNum
-    
+        if self.openSeatNums:
+            seatNum = self.openSeatNums.pop()
+            self.seatedPlayersDict[seatNum] = playerToSeat
+            return seatNum
+        else:
+            logging.info("No more seats at the table")
+            return
+
     def unSeatPlayer(self, playerToUnSeat):
         openSeatNum=playerToUnSeat.seatNum
-        self.seatedPlayers.pop(openSeatNum)
+        self.seatedPlayersDict.pop(openSeatNum)
         self.openSeatNums.append(openSeatNum)
         pass
     
-    def removePlayerFromTable(self, playerToRemove):
+    def removePlayerFromLobby(self, playerToRemove):
         if playerToRemove.seated:
             playerToRemove.standUp()
-        newPlayerList = [p for p in self.players if not p.usrId == playerToRemove.usrId]
-        self.players = newPlayerList
+        newLobbyList = [p for p in self.playersInLobby if not p.usrId == playerToRemove.usrId]
+        self.playersInLobby = newPlayerList
         
     def clearPlayerHands(self):
-        for seatnum in self.seatedPlayers.keys():
-            self.seatedPlayers[seatnum].clearHand()
+        for player in self.seatedPlayers:
+            player.clearHand()
     
-    def resetRound(self):
-        print("New Betting Round")
+    def startNewHand(self):
+        logging.debug("New HAND")
         self.bettingRound=0
         if(len(self.occupiedSeatNums))<self.MINPLAYERS:
-            print("Need at least 3 seated players to start")
+            logging.warning("Need at least 3 seated players to start")
             return
         self.numHands+=1
         self.clearPlayerHands()
         self.moveBtton()
-        print("Button is at seat Number: "+str(self.buttonSeatNum))
+        logging.info("Button is at seat Number: "+str(self.buttonSeatNum))
         self.deck.repopulate()
         self.deck.shuffle()
         pot=Pot(self)
-        self.pots.append(pot)
-        self.getAntes(pot)
-        return pot
+        return (pot, self.smallBlindPlayer, self.bigBlindPlayer)
    
-    def getAntes(self, pot):
-        smallPlayer = self.seatedPlayers[self.smallSeatNum]
-        bigPlayer = self.seatedPlayers[self.bigSeatNum]
-        smallPlayer.Raise(Table.BLINDS[0], pot)
-        bigPlayer.Raise(Table.BLINDS[1], pot)   
+    def getAntes(self, pot, smallBlindPlyr, bigBlindPlyr):
+        smallBlindPlyr.Raise(Table.BLINDS[0], pot)
+        bigBlindPlyr.Raise(Table.BLINDS[1], pot)   
          
-    def deal(self):
-        cur_player = self.seatedPlayers[self.smallSeatNum]
+    def deal(self, smallBlindPlyr):
+        cur_player = smallBlindPlyr
         for _ in range(2):
             for _ in range(len(self.seatedPlayers)):
                 card = self.deck.deal(1)[0]
                 cur_player.addCardToHand(card)
+                logging.debug("Dealt "+card.rawval+" to "+cur_player.playname)
                 cur_player = self.getNextSeatedPlayer(cur_player)
         self.printPlayerHands()
         
-    def beginBetting(self, pot):
+    def beginBetting(self, pot, smallBlindPlyr, bigBlindPlyr):
         self.bettingRound+=1
         if self.bettingRound == 1:
-            self.actionToSeatNum = self.getNextSeatNum(self.bigSeatNum) #bet starts to left of Big blind
+            self.startingPlayer = self.getNextSeatedPlayer(bigBlindPlyr) #bet starts to left of Big blind
         else:
-            self.actionToSeatNum = self.getNextSeatNum(self.buttonSeatNum) #bet starts to left of button
-        while pot.actionRemains:
-            bettingPlayer = self.seatedPlayers[self.actionToSeatNum]
-                bettingPlayer.getAction(self, pot)
-                # Do other stuff
-            self.actionToSeatNum = self.getNextSeatNum(self.actionToSeatNum)
-        print("Betting round complete")
+            self.startingPlayer = self.getNextSeatedPlayer(self.buttonPlayer) #bet starts to left of button
+        actionRemains = True
+        bettingPlayer = self.startingPlayer
+        logging.debug("Betting Round "+str(self.bettingRound)+"Action begins with "+bettingPlayer.playname)
+        while actionRemains:
+            bettingPlayer.getAction(self, pot)
+            bettingPlayer = self.getNextSeatedPlayer(bettingPlayer)
+            if bettingPlayer == self.startingPlayer:  #We have come back around to the starting action
+                actionRemains = False
+        logging.debug("Betting round complete")
         return
-                
+    
     def printPlayerHands(self):
-        for _, player in self.seatedPlayers.items():
+        for _, player in self.seatedPlayersDict.items():
             print("Player "+player.playname+" hand is "+str(player.humanReadableHand))
             
     def moveBtton(self):
         self.buttonSeatNum = self.getNextSeatNum(self.buttonSeatNum)
-        self.smallSeatNum = self.getNextSeatNum(self.buttonSeatNum)
-        self.bigSeatNum = self.getNextSeatNum(self.bigSeatNum)
-        pass
 
     ## Get the player to the left of the current player
     def getNextSeatedPlayer(self, cur_player):
         cur_seat_num = cur_player.seatNum
         nextSeatNum = self.getNextSeatNum(cur_seat_num)
-        return self.seatedPlayers[nextSeatNum]  
+        return self.seatedPlayersDict[nextSeatNum]  
     
     ## Get the player to the left of the current player
     def getNextSeatNum(self, cur_seat_num):
@@ -321,24 +361,24 @@ class Table:
     ## Get the player to the right of the current player
     def getPrevSeatedPlayer(self, cur_player):
         cur_seat_num = cur_player.seatNum
-        nextSeatNum = self.getNextSeatNum(cur_seat_num)
-        return self.seatedPlayers[nextSeatNum]  
+        prevSeatNum = self.getPrevSeatNum(cur_seat_num)
+        return self.seatedPlayersDict[prevSeatNum]  
     
-    ## Get the seat number to the right of the current seat nujmber    
+    ## Get the seat number to the right of the current seat number    
     def getPrevSeatNum(self, cur_seat_num):
         cur_seat_idx = self.occupiedSeatNums.index(cur_seat_num)
-        if cur_seat_idx == len(self.occupiedSeatNums)-1:
-            cur_seat_idx = 0
+        if cur_seat_idx == 0:
+            cur_seat_idx = len(self.occupiedSeatNums)-1
         else:
-            cur_seat_idx+=1
+            cur_seat_idx-=1
         return self.occupiedSeatNums[cur_seat_idx]
       
     def __str__(self):
-        resp = "Table online is "+str(self.online)+" Players are "+str([p.playname for p in self.players])
+        resp = "Table online is "+str(self.online)+" Players in Lobby "+str([p.playname for p in self.playersInLobby])
         resp+="\n\n Open Seat nums"+str(self.openSeatNums)
         resp+="\nseated players:\n"
-        for k,v in self.seatedPlayers.items():
-            resp+=str(k)+str(v.playname)+'\n'
+        for player in self.seatedPlayers:
+            resp+=str(player.playname)+'\n'
         return resp
     
 
