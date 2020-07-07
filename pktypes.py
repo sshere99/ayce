@@ -43,19 +43,26 @@ class Pot:
         resp="Bets are :"
         for b in self.bets:
             resp+=" - "+str(b.amount)
+            resp+=" raised by "+str(b.raiser.playname)
+            resp+=" with callers "+str([x.playname for x in b.callers])+"\n "
         return resp
     
     
 class Bet:
     
-    def __init__(self, player, amount):
+    def __init__(self, player, amount, incrementAmt):
         self.raiser=player
         self.callers=[]
         self.closed=False
         self.amount=amount
+        self.incrementalAmount=incrementAmt
     
     def addCaller(self, caller):
         self.callers.append(caller)
+        
+    def removeCaller(self, callerToRemove):
+        if callerToRemove in self.callers:
+            self.callers.remove(callerToRemove)
         
 class Deck:
     
@@ -125,37 +132,49 @@ class Player:
         noAction = False
         if not pot.bets:   # No previous bets
             noAction = True
-            logging.info("Check to you, "+self.playname+". Bet or check")
+            logging.info("Check to you, "+self.playname+". Raise or Check")
         else:
-            noAction = False
             logging.info("Raised to "+self.playname+". Fold, Call or Raise") 
         action, amount = input("Enter action and amount: ").split() 
         decision = getattr(self, action)
-        decision(amount, pot)
+        decision(int(amount), pot)
         return
         
     def Raise(self, betAmount, pot):
         ## Call previous bets
-        upstreamBetAmt = self.Call(pot)
+        upstreamBetAmt = self.Call(0, pot)
         logging.debug("RAISING")
         incrementalBet = betAmount - upstreamBetAmt
         newbet = Bet(self, betAmount)
         newbet.addCaller(self)
         self.stack -= incrementalBet
-        pot.potValue += incrementalBet
+        logging.debug("Reducing stack by"+str(incrementalBet))
         pot.bets.insert(0,newbet)
         self.atTable.startingPlayer = self
+        return
         
     def Call(self, amount, pot):
+        upstreamBetAmt = 0
+        idx=0
         if pot.bets:
-            upstreamBet = pot.bets[0]
-            upstreamBetAmt = upstreamBet.amount
-            logging.debug("CALLING PREV BET")
+            upstreamBet = pot.bets[idx]
+            while self not in upstreamBet.callers:
+                upstreamBetAmt += upstreamBet.amount
+                upstreamBet.addCaller(self)
+                idx += 1
+            #ITERATE THROUGH AND GET INCREMENTAL
+           # for upstreamBet in pot.bets:
+            #    if self not in upstreamBet.callers:
+            #        upstreamBetAmt += upstreamBet.amount
+            #        upstreamBet.addCaller(self)
+            # OLD
+            #upstreamBet = pot.bets[0]
+            #upstreamBetAmt = upstreamBet.amount
+            #logging.debug("CALLING PREV BET OF "+str(upstreamBetAmt))
         else:
-            upstreamBetAmt = 0
             logging.debug("NO PREV BET")
         self.stack -= upstreamBetAmt
-        pot.potValue += upstreamBetAmt
+        logging.debug("Reducing stack by"+str(upstreamBetAmt))
         for bet in pot.bets:
             if self not in bet.callers:
                 bet.addCaller(self)
@@ -167,7 +186,11 @@ class Player:
     
     def Fold(self, amount, pot):
         self.folded=True
-        FOLD LOWER LEVEL BETS
+        for bet in pot.bets:
+            if self in bet.callers:
+                bet.removeCaller(self)
+        for bet in pot.sidePots:  #Since player folded they can't get action from side pots
+            bet.removeCaller(self)
         return
         
     def RaiseAllIn(self, amount, pot):
@@ -183,11 +206,13 @@ class Player:
             self.seatNum = seatNum
         else:
             logging.warning("Need to be in the lobby first")
+        return
         
     def standUp(self):
         self.atTable.unSeatPlayer(self)
         self.seated=False
         self.seatNum=None
+        return
         
     def joinLobby(self):
         pass
@@ -197,6 +222,7 @@ class Player:
             self.standUp()
         self.atTable.removePlayerFromLobby(self)
         self.atTable=False
+        return
         
     def __str__(self):
         resp = self.playname+" is the player and they have "+str(self.stack)+" chips"
@@ -329,7 +355,7 @@ class Table:
         bettingPlayer = self.startingPlayer
         logging.debug("Betting Round "+str(self.bettingRound)+"Action begins with "+bettingPlayer.playname)
         while actionRemains:
-            bettingPlayer.getAction(self, pot)
+            bettingPlayer.getAction(pot)
             bettingPlayer = self.getNextSeatedPlayer(bettingPlayer)
             if bettingPlayer == self.startingPlayer:  #We have come back around to the starting action
                 actionRemains = False
@@ -378,7 +404,7 @@ class Table:
         resp+="\n\n Open Seat nums"+str(self.openSeatNums)
         resp+="\nseated players:\n"
         for player in self.seatedPlayers:
-            resp+=str(player.playname)+'\n'
+            resp+=str(player.seatNum)+" - "+str(player.playname)+" STACK:"+str(player.stack)+"\n"
         return resp
     
 
