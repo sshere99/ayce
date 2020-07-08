@@ -1,5 +1,6 @@
 import random
 import logging
+import csv
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -34,8 +35,6 @@ class Pot:
         pass
     
     def clearBetsForRound(self):
-        # Iterate over bets - check for side pots
-        # Update pot value
         self.bets=[]
         pass
     
@@ -45,6 +44,7 @@ class Pot:
             resp+=" - "+str(b.amount)
             resp+=" raised by "+str(b.raiser.playname)
             resp+=" with callers "+str([x.playname for x in b.callers])+"\n "
+        resp+=" \n. total pot value : "+str(self.potValue)
         return resp
     
     
@@ -99,6 +99,14 @@ class Deck:
               
 class Player:
     
+    TEST_simvals = None
+    TEST_simulate= False
+    def TEST_runSim(cls, fname):
+        cls.TEST_simulate=True
+        logging.debug("Loading simulation")
+        with open(fname, newline='') as csvfile:
+            cls.TEST_simvals = list(csv.reader(csvfile))
+    
     def __init__(self, usrId, playname, bank, stack):
         self.usrId=usrId
         self.bank=bank
@@ -135,7 +143,12 @@ class Player:
             logging.info("Check to you, "+self.playname+". Raise or Check")
         else:
             logging.info("Raised to "+self.playname+". Fold, Call or Raise") 
-        action, amount = input("Enter action and amount: ").split() 
+        if Player.TEST_simulate:
+            simact = tuple(Player.TEST_simvals.pop(0))
+            action, amount = simact
+        else:
+            action, amount = input("Enter action and amount: ").split() 
+        logging.info(self.playname+" decides to "+str(action)+" "+str(amount))
         decision = getattr(self, action)
         decision(int(amount), pot)
         return
@@ -152,6 +165,7 @@ class Player:
         self.stack -= incrementalBet
         logging.debug("Reducing stack by"+str(incrementalBet))
         pot.bets.insert(0,newbet)
+        pot.potValue+=incrementalBet
         self.atTable.startingPlayer = self
         return
         
@@ -163,6 +177,7 @@ class Player:
                 if self not in upstreamBet.callers:
                     upstreamBetAmt += upstreamBet.incrementAmt
                     upstreamBet.addCaller(self)
+            pot.potValue+=upstreamBetAmt
         else:
             logging.debug("NO PREV BET")
         self.stack -= upstreamBetAmt
@@ -354,6 +369,7 @@ class Table:
             if bettingPlayer == self.startingPlayer:  #We have come back around to the starting action
                 actionRemains = False
         logging.debug("Betting round complete")
+        #pot.clearBetsForRound()
         return
     
     def printPlayerHands(self):
