@@ -55,7 +55,7 @@ class Bet:
         self.callers=[]
         self.closed=False
         self.amount=amount
-        self.incrementalAmount=incrementAmt
+        self.incrementAmt=incrementAmt
     
     def addCaller(self, caller):
         self.callers.append(caller)
@@ -141,11 +141,13 @@ class Player:
         return
         
     def Raise(self, betAmount, pot):
-        ## Call previous bets
-        upstreamBetAmt = self.Call(0, pot)
+        self.Call(0, pot)  # Call previous bets
+        upstreamBetAmt = 0
+        if pot.bets:
+            upstreamBetAmt = pot.bets[0].amount
         logging.debug("RAISING")
         incrementalBet = betAmount - upstreamBetAmt
-        newbet = Bet(self, betAmount)
+        newbet = Bet(self, betAmount, incrementalBet)
         newbet.addCaller(self)
         self.stack -= incrementalBet
         logging.debug("Reducing stack by"+str(incrementalBet))
@@ -153,32 +155,19 @@ class Player:
         self.atTable.startingPlayer = self
         return
         
-    def Call(self, amount, pot):
+    def Call(self, _, pot):
         upstreamBetAmt = 0
-        idx=0
         if pot.bets:
-            upstreamBet = pot.bets[idx]
-            while self not in upstreamBet.callers:
-                upstreamBetAmt += upstreamBet.amount
-                upstreamBet.addCaller(self)
-                idx += 1
-            #ITERATE THROUGH AND GET INCREMENTAL
-           # for upstreamBet in pot.bets:
-            #    if self not in upstreamBet.callers:
-            #        upstreamBetAmt += upstreamBet.amount
-            #        upstreamBet.addCaller(self)
-            # OLD
-            #upstreamBet = pot.bets[0]
-            #upstreamBetAmt = upstreamBet.amount
-            #logging.debug("CALLING PREV BET OF "+str(upstreamBetAmt))
+            for idx in range(len(pot.bets)):
+                upstreamBet = pot.bets[idx]
+                if self not in upstreamBet.callers:
+                    upstreamBetAmt += upstreamBet.incrementAmt
+                    upstreamBet.addCaller(self)
         else:
             logging.debug("NO PREV BET")
         self.stack -= upstreamBetAmt
-        logging.debug("Reducing stack by"+str(upstreamBetAmt))
-        for bet in pot.bets:
-            if self not in bet.callers:
-                bet.addCaller(self)
-        return upstreamBetAmt
+        logging.debug("CALL - Reducing stack by"+str(upstreamBetAmt))
+        return 
     
     def Check(self, amount, pot):
         logging.debug("CHECKING")
@@ -199,6 +188,11 @@ class Player:
     def CallAllIn(self, amount, pot):
         pass
 
+    def callUpstreamBets(self, pot):
+        for bet in pot.bets:
+            if self not in bet.callers:
+                bet.addCaller(self)
+    
     def sitDown(self):
         if self.atTable:
             self.seated=True
