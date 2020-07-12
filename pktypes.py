@@ -13,7 +13,7 @@ class Card:
     def __init__(self,rank, suit, faceup=True):
         self.rank=rank
         self.suit=suit
-        self.value=(Card.RANKS.index(self.rank)+1)
+        self.value=(Card.RANKS.index(self.rank)+2)
         self.faceup=faceup
         self.rawval=rank+suit
 
@@ -35,8 +35,10 @@ class Pot:
         pass
     
     def clearBetsForRound(self):
-        self.bets=[]
-        pass
+        self.bets=[]  # Clear bet objects for this round of betting
+        for p in self.table.seatedPlayers:
+            p.valueInHand=0  # reset the value in hand amt
+        return
     
     def __str__(self):
         resp="Bets are :"
@@ -45,6 +47,7 @@ class Pot:
             resp+=" raised by "+str(b.raiser.playname)
             resp+=" with callers "+str([x.playname for x in b.callers])+"\n "
         resp+=" \n. total pot value : "+str(self.potValue)
+        resp+=" \n. STARTING PLAYER : "+str(self.table.startingPlayer.playname)
         return resp
     
     
@@ -117,6 +120,7 @@ class Player:
         self.seatNum=None
         self.hand=[]
         self.folded=False
+        self.valueInHand=0 #For a given round of betting, how much the player has already invested
                 
     @property
     def humanReadableHand(self):
@@ -132,6 +136,25 @@ class Player:
         self.hand=[]
         self.folded=False
     
+    def getUpstreamBetAmt(self, pot):
+        upstreamBetAmt = 0
+        if pot.bets:
+            upstreamBetAmt = pot.bets[0].amount
+        return upstreamBetAmt  
+    
+    def getMinRaise(self, pot):
+        if pot.bets:
+            upstreamBet = pot.bets[0]
+            upstreamBetAmt = upstreamBet.amount
+            upstreamIncrementAmt = upstreamBet.incrementAmt
+            minRaise = upstreamBetAmt + upstreamIncrementAmt
+        else:
+            minRaise = Table.BLINDS[1]
+        return minRaise
+    
+    def getAllInAmt(self):
+        return self.valueInHand + self.stack
+    
     def getAction(self, pot):
         if self.folded:
             logging.debug("Player "+self.playname+" has already folded")
@@ -140,29 +163,30 @@ class Player:
         noAction = False
         if not pot.bets:   # No previous bets
             noAction = True
-            logging.info("Check to you, "+self.playname+". Raise or Check")
+            logging.info("Check to you, "+self.playname+". Raise or Check"+" all in amt is "+str(self.getAllInAmt()))
         else:
-            logging.info("Raised to "+self.playname+". Fold, Call or Raise") 
+            minRaise = self.getMinRaise(pot)
+            lgmsg = "Raised to "+self.playname+". Fold, Call or Raise. Min Raise is "+str(minRaise)+" all in amt is "+str(self.getAllInAmt())
+            logging.info(lgmsg) 
         if Player.TEST_simulate:
             simact = tuple(Player.TEST_simvals.pop(0))
             action, amount = simact
         else:
             action, amount = input("Enter action and amount: ").split() 
-        logging.info(self.playname+" decides to "+str(action)+" "+str(amount))
+        logging.info("\n\n"+self.playname+" decides to "+str(action)+" "+str(amount))
         decision = getattr(self, action)
         decision(int(amount), pot)
         return
         
     def Raise(self, betAmount, pot):
         self.Call(0, pot)  # Call previous bets
-        upstreamBetAmt = 0
-        if pot.bets:
-            upstreamBetAmt = pot.bets[0].amount
+        upstreamBetAmt = self.getUpstreamBetAmt(pot)
         logging.debug("RAISING")
         incrementalBet = betAmount - upstreamBetAmt
         newbet = Bet(self, betAmount, incrementalBet)
         newbet.addCaller(self)
         self.stack -= incrementalBet
+        self.valueInHand += incrementalBet
         logging.debug("Reducing stack by"+str(incrementalBet))
         pot.bets.insert(0,newbet)
         pot.potValue+=incrementalBet
@@ -181,6 +205,7 @@ class Player:
         else:
             logging.debug("NO PREV BET")
         self.stack -= upstreamBetAmt
+        self.valueInHand += upstreamBetAmt
         logging.debug("CALL - Reducing stack by"+str(upstreamBetAmt))
         return 
     
@@ -256,6 +281,7 @@ class Table:
         self.numHands=0
         self.startingPlayer=None  
         self.bettingRound=0 #1 = preflop, 2=flop, 3=turn, 4=river
+        self.communityCards=[]
       
     @property
     def occupiedSeatNums(self):
@@ -338,6 +364,8 @@ class Table:
         self.deck.repopulate()
         self.deck.shuffle()
         pot=Pot(self)
+        self.getAntes(pot, self.smallBlindPlayer, self.bigBlindPlayer)
+        self.deal(self.smallBlindPlayer)
         return (pot, self.smallBlindPlayer, self.bigBlindPlayer)
    
     def getAntes(self, pot, smallBlindPlyr, bigBlindPlyr):
@@ -345,6 +373,7 @@ class Table:
         bigBlindPlyr.Raise(Table.BLINDS[1], pot)   
          
     def deal(self, smallBlindPlyr):
+        self.clearAllPlayerHands()
         cur_player = smallBlindPlyr
         for _ in range(2):
             for _ in range(len(self.seatedPlayers)):
@@ -353,23 +382,35 @@ class Table:
                 logging.debug("Dealt "+card.rawval+" to "+cur_player.playname)
                 cur_player = self.getNextSeatedPlayer(cur_player)
         self.printPlayerHands()
-        
+    
+    def dealCommCards(self, numcards):
+        for _ in range(numcards):
+            card = self.deck.deal(1)[0]
+            self.communityCards.append(card)
+        logging.debug("Community Cards: "+str([c.rawval for c in self.communityCards]))
+        return
+    
+    def clearAllPlayerHands(self):
+        for p in self.seatedPlayers:
+            p.clearHand()
+        return
+    
     def beginBetting(self, pot, smallBlindPlyr, bigBlindPlyr):
         self.bettingRound+=1
         if self.bettingRound == 1:
-            self.startingPlayer = self.getNextSeatedPlayer(bigBlindPlyr) #bet starts to left of Big blind
+            self.startingPlayer = bigBlindPlyr #This is the player that started the action with their bet
+            bettingPlayer = self.getNextSeatedPlayer(bigBlindPlyr)  #New betting starts to right of BB
         else:
-            self.startingPlayer = self.getNextSeatedPlayer(self.buttonPlayer) #bet starts to left of button
+            self.startingPlayer = bettingPlayer = smallBlindPlyr #Action & betting starts to right of button
         actionRemains = True
-        bettingPlayer = self.startingPlayer
         logging.debug("Betting Round "+str(self.bettingRound)+"Action begins with "+bettingPlayer.playname)
         while actionRemains:
             bettingPlayer.getAction(pot)
             bettingPlayer = self.getNextSeatedPlayer(bettingPlayer)
             if bettingPlayer == self.startingPlayer:  #We have come back around to the starting action
                 actionRemains = False
-        logging.debug("Betting round complete")
-        #pot.clearBetsForRound()
+        logging.debug("Betting round complete + Pot details:\n")
+        pot.clearBetsForRound()
         return
     
     def printPlayerHands(self):
@@ -418,3 +459,6 @@ class Table:
         return resp
     
 
+    
+    
+                
