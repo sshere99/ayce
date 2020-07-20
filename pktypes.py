@@ -37,7 +37,7 @@ class Pot:
     def clearBetsForRound(self):
         self.bets=[]  # Clear bet objects for this round of betting
         for p in self.table.seatedPlayers:
-            p.valueInHand=0  # reset the value in hand amt
+            p.valueInRnd=0  # reset the value in hand amt
         return
     
     def __str__(self):
@@ -120,7 +120,8 @@ class Player:
         self.seatNum=None
         self.hand=[]
         self.folded=False
-        self.valueInHand=0 #For a given round of betting, how much the player has already invested
+        self.valueInRnd=0 #For a given round of betting, how much the player has already invested
+        self.allIn=False #Is the player all in?
                 
     @property
     def humanReadableHand(self):
@@ -135,6 +136,7 @@ class Player:
     def clearHand(self):
         self.hand=[]
         self.folded=False
+        self.allIn=False
     
     def getUpstreamBetAmt(self, pot):
         upstreamBetAmt = 0
@@ -153,7 +155,7 @@ class Player:
         return minRaise
     
     def getAllInAmt(self):
-        return self.valueInHand + self.stack
+        return self.valueInRnd + self.stack
     
     def getAction(self, pot):
         if self.folded:
@@ -176,6 +178,8 @@ class Player:
         logging.info("\n\n"+self.playname+" decides to "+str(action)+" "+str(amount))
         decision = getattr(self, action)
         decision(int(amount), pot)
+        logging.debug("\n STACK: "+str(self.stack)+"\n VALUE IN HAND: "+str(self.valueInRnd)+"\n******* POT *******\n")
+        logging.debug(pot)
         return
         
     def Raise(self, betAmount, pot):
@@ -183,15 +187,20 @@ class Player:
         upstreamBetAmt = self.getUpstreamBetAmt(pot)
         logging.debug("RAISING")
         incrementalBet = betAmount - upstreamBetAmt
+        if incrementalBet >= self.stack:
+            logging.debug("\n+++++++++\nPLAYER IS ALL IN")
+            incrementalBet = self.stack
+            betAmount = upstreamBetAmt + self.stack
+            self.allIn=True
         newbet = Bet(self, betAmount, incrementalBet)
         newbet.addCaller(self)
         self.stack -= incrementalBet
-        self.valueInHand += incrementalBet
+        self.valueInRnd += incrementalBet
         logging.debug("Reducing stack by"+str(incrementalBet))
         pot.bets.insert(0,newbet)
         pot.potValue+=incrementalBet
         self.atTable.startingPlayer = self
-        return
+        return 
         
     def Call(self, _, pot):
         upstreamBetAmt = 0
@@ -205,7 +214,7 @@ class Player:
         else:
             logging.debug("NO PREV BET")
         self.stack -= upstreamBetAmt
-        self.valueInHand += upstreamBetAmt
+        self.valueInRnd += upstreamBetAmt
         logging.debug("CALL - Reducing stack by"+str(upstreamBetAmt))
         return 
     
@@ -410,7 +419,8 @@ class Table:
             if bettingPlayer == self.startingPlayer:  #We have come back around to the starting action
                 actionRemains = False
         logging.debug("Betting round complete + Pot details:\n")
-        pot.clearBetsForRound()
+        logging.debug(pot)
+        #pot.clearBetsForRound()
         return
     
     def printPlayerHands(self):

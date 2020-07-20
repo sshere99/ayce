@@ -14,7 +14,7 @@ Object representing the table
 A cycle of poker that starts with the button moving, deal, and then ends with a player winning. Within a Hand there are 4 betting rounds (or stages) - Preflop, post flop, Turn, River
 
 ## Betting Round: 
-A round of betting for a given stage of a hand. It starts the right of the button (or right of BB for preflop). Continues until everyone has called or folded
+A round of betting for a given stage of a hand. It starts the right of the button (or right of BB for preflop). Continues until everyone has called or folded. At any given time, the player's investment is defined by "value in round" attribute. This is reset after a given betting round is complete
 
 ## Pot: 
 Object representing a pot for a given Hand. Once the Hand is complete, the pot is discarded and a new instance is created. During the Hand, for a given betting round there Bets made. Each Bet is stored in an array under the Pot instance. At the end of the Betting Round, the array of Bet of cleared. 
