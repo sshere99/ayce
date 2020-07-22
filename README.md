@@ -26,3 +26,21 @@ An object that represents a bet made by a player. If the bet is re-raised, then 
 
 
 sdfds
+
+
+    def test_allin(self):
+        """
+        Test if all in sim works  - ALL INS
+        """
+        for player in t.playersInLobby:
+            player.stack=1000
+        print(t)
+        t.startGame()
+        pot, small, big = t.startNewHand()
+        Player.TEST_runSim(Player, "./testsims/allin.csv")
+        t.beginBetting(pot, small, big)
+        self.assertTrue(t.seatedPlayersDict[5].allIn)
+        pot.clearBetsForRound()
+        ####. ADDDO SOME ASSERTS HERE ************
+        #self.assertEqual(pot.potValue, 1410)    
+        #self.assertEqual(pot.potValue, 1410)    

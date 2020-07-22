@@ -31,9 +31,44 @@ class Pot:
         self.sidePots=[]
         self.table=table
     
-    def createSidePot(self):
-        pass
+    def createSidePotBet(self, higherBet, player):
+        betAmt = player.stack      #Bet amount = the players remaining stack
+        lowerBet = self.getLowerBet(higherBet)
+        increment = betAmt - lowerBet.amount
+        self.potValue+=increment
+        assert increment >= 0
+        sidePotBet = Bet(player, betAmt, increment)
+        sidePotBet.addCaller(player)
+        sidePotBet.isSidePotBet=True
+        player.valueInRnd += increment
+        self.insertNewSidePotBet(sidePotBet)
+        
+        #Call the lower bets
+        while lowerBet:
+            lowerBet.addCaller(player)
+            lowerBet = self.getLowerBet(lowerBet)
+         
+        return
     
+    def getLowerBet(self, higherBet):
+        lowerBet = None
+        for idx, bet in enumerate(self.bets):
+            if bet == higherBet:
+                lowerBetIdx = idx+1
+                if lowerBetIdx < len(self.bets):
+                    lowerBet = self.bets[idx+1]
+        return lowerBet
+    
+    def insertNewSidePotBet(self, newBet):
+        for idx, bet in enumerate(self.bets):
+            if newBet.amount > bet.amount:
+                self.bets.insert(idx,newBet)
+                highestCallers = self.bets[0].callers
+                for caller in highestCallers:
+                    newBet.callers.append(caller)
+                return
+        return
+
     def clearBetsForRound(self):
         self.bets=[]  # Clear bet objects for this round of betting
         for p in self.table.seatedPlayers:
@@ -58,10 +93,12 @@ class Bet:
         self.callers=[]
         self.closed=False
         self.amount=amount
+        self.isSidePotBet=False
         self.incrementAmt=incrementAmt
     
     def addCaller(self, caller):
-        self.callers.append(caller)
+        if caller not in self.callers:
+            self.callers.append(caller)
         
     def removeCaller(self, callerToRemove):
         if callerToRemove in self.callers:
@@ -163,12 +200,14 @@ class Player:
             return
         amount=0
         noAction = False
+        allInAmt = self.getAllInAmt()
         if not pot.bets:   # No previous bets
             noAction = True
-            logging.info("Check to you, "+self.playname+". Raise or Check"+" all in amt is "+str(self.getAllInAmt()))
+            logging.info("Check to you, "+self.playname+". Raise or Check"+" all in amt is "+str(allInAmt))
         else:
             minRaise = self.getMinRaise(pot)
-            lgmsg = "Raised to "+self.playname+". Fold, Call or Raise. Min Raise is "+str(minRaise)+" all in amt is "+str(self.getAllInAmt())
+            lgmsg = "Raised to "+self.playname+". Fold, Call or Raise. Min Raise is "
+            lgmsg+=str(minRaise)+" all in amt is "+str(self.getAllInAmt())
             logging.info(lgmsg) 
         if Player.TEST_simulate:
             simact = tuple(Player.TEST_simvals.pop(0))
@@ -178,7 +217,7 @@ class Player:
         logging.info("\n\n"+self.playname+" decides to "+str(action)+" "+str(amount))
         decision = getattr(self, action)
         decision(int(amount), pot)
-        logging.debug("\n STACK: "+str(self.stack)+"\n VALUE IN HAND: "+str(self.valueInRnd)+"\n******* POT *******\n")
+        logging.debug("\n STACK: "+str(self.stack)+"\n VALUE IN HAND: "+str(self.valueInRnd)+"\n******* POT *******\n\n\n\n")
         logging.debug(pot)
         return
         
@@ -195,6 +234,7 @@ class Player:
         newbet = Bet(self, betAmount, incrementalBet)
         newbet.addCaller(self)
         self.stack -= incrementalBet
+        assert self.stack >= 0
         self.valueInRnd += incrementalBet
         logging.debug("Reducing stack by"+str(incrementalBet))
         pot.bets.insert(0,newbet)
@@ -205,15 +245,20 @@ class Player:
     def Call(self, _, pot):
         upstreamBetAmt = 0
         if pot.bets:
-            for idx in range(len(pot.bets)):
-                upstreamBet = pot.bets[idx]
+            for upstreamBet in reversed(pot.bets):
                 if self not in upstreamBet.callers:
                     upstreamBetAmt += upstreamBet.incrementAmt
-                    upstreamBet.addCaller(self)
+                    if upstreamBetAmt > self.stack:
+                        logging.debug("CREATE SIDE POT")
+                        pot.createSidePotBet(upstreamBet, self)  #Send index of higher bet
+                        return
+                    else:
+                        upstreamBet.addCaller(self)
             pot.potValue+=upstreamBetAmt
         else:
             logging.debug("NO PREV BET")
         self.stack -= upstreamBetAmt
+        assert self.stack >= 0
         self.valueInRnd += upstreamBetAmt
         logging.debug("CALL - Reducing stack by"+str(upstreamBetAmt))
         return 
@@ -282,7 +327,6 @@ class Table:
         self.MINPLAYERS = 3 #min number of seated players
         self.deck=Deck()
         self.playersInLobby=[]
-        self.totalPot=0  # Value of pot from previous betting rounds for a given hand
         self.seatedPlayersDict={} #key is seatnumber, value is player object
         self.maxseats=maxseats
         self.openSeatNums=list(range(maxseats))  #Unordered list of open seat numbers. Starts at 0
