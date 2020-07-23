@@ -26,28 +26,29 @@ class Card:
 class Pot:
     
     def __init__(self, table):
-        self.potValue=0
+        self.potValue=0      # Total pot across multiple rounds
+        self.potValueInRound=0      # Size of pot for the given round of betting
         self.bets=[]   #Array of bet objects for given betting round, at end of betting rnd is checked for side pots then cleared
         self.sidePots=[]
         self.table=table
     
     def createSidePotBet(self, higherBet, player):
-        betAmt = player.stack      #Bet amount = the players remaining stack
         lowerBet = self.getLowerBet(higherBet)
-        increment = betAmt - lowerBet.amount
-        self.potValue+=increment
+        increment = player.stack  #Because player has already called lower bet
+        betAmt = lowerBet.amount + increment 
+        logging.debug("betamt="+str(betAmt)+ " increment = "+str(increment))
         assert increment >= 0
         sidePotBet = Bet(player, betAmt, increment)
         sidePotBet.addCaller(player)
-        sidePotBet.isSidePotBet=True
-        player.valueInRnd += increment
+        self.updatePotValueInRound()
+        logging.debug(player.playname+" value in hand is "+str(player.valueInRnd))
         self.insertNewSidePotBet(sidePotBet)
-        
         #Call the lower bets
         while lowerBet:
             lowerBet.addCaller(player)
             lowerBet = self.getLowerBet(lowerBet)
-         
+        # Update the "incremental amounts" for the higher bet
+        higherBet.incrementAmt = (higherBet.amount - betAmt)
         return
     
     def getLowerBet(self, higherBet):
@@ -63,13 +64,24 @@ class Pot:
         for idx, bet in enumerate(self.bets):
             if newBet.amount > bet.amount:
                 self.bets.insert(idx,newBet)
-                highestCallers = self.bets[0].callers
-                for caller in highestCallers:
-                    newBet.callers.append(caller)
+                for i in range(idx):   #Add players from higher bets to this pot
+                    highestCallers = self.bets[i].callers
+                    for caller in highestCallers:
+                        if caller not in newBet.callers:
+                            newBet.callers.append(caller)
                 return
         return
 
+    def updatePotValueInRound(self):
+        players = self.table.seatedPlayers
+        roundtotal = 0
+        for p in players:
+            roundtotal += p.valueInRnd
+        self.potValueInRound = roundtotal
+        logging.debug("pot value in round is "+str(roundtotal))
+    
     def clearBetsForRound(self):
+        self.potValue += self.potValueInRound
         self.bets=[]  # Clear bet objects for this round of betting
         for p in self.table.seatedPlayers:
             p.valueInRnd=0  # reset the value in hand amt
@@ -78,10 +90,12 @@ class Pot:
     def __str__(self):
         resp="Bets are :"
         for b in self.bets:
-            resp+=" - "+str(b.amount)
+            resp+="AMOUNT - "+str(b.amount)
+            resp+="INCREMENTAL AMT - "+str(b.incrementAmt)
             resp+=" raised by "+str(b.raiser.playname)
             resp+=" with callers "+str([x.playname for x in b.callers])+"\n "
         resp+=" \n. total pot value : "+str(self.potValue)
+        resp+=" \n. total pot value IN ROUND : "+str(self.potValueInRound)
         resp+=" \n. STARTING PLAYER : "+str(self.table.startingPlayer.playname)
         return resp
     
@@ -93,17 +107,25 @@ class Bet:
         self.callers=[]
         self.closed=False
         self.amount=amount
-        self.isSidePotBet=False
         self.incrementAmt=incrementAmt
     
     def addCaller(self, caller):
         if caller not in self.callers:
             self.callers.append(caller)
+            caller.stack -= self.incrementAmt
+            caller.valueInRnd += self.incrementAmt
+            assert caller.stack >= 0
+            logging.debug(caller.playname+" calling bet total: "+str(self.amount)+" incremental amt: "+str(self.incrementAmt))
+            logging.debug("\nvalue in round = "+str(caller.valueInRnd))
         
     def removeCaller(self, callerToRemove):
         if callerToRemove in self.callers:
             self.callers.remove(callerToRemove)
         
+    def __str__(self):
+        resp = "BET OBJECT \n amount:"+str(self.amount)+" INCREMENT AMT: "+str(self.incrementAmt)
+        return resp
+    
 class Deck:
     
     def __init__(self):
@@ -195,8 +217,8 @@ class Player:
         return self.valueInRnd + self.stack
     
     def getAction(self, pot):
-        if self.folded:
-            logging.debug("Player "+self.playname+" has already folded")
+        if self.folded or self.allIn:
+            logging.debug("Player "+self.playname+" has already folded or is all in")
             return
         amount=0
         noAction = False
@@ -217,7 +239,7 @@ class Player:
         logging.info("\n\n"+self.playname+" decides to "+str(action)+" "+str(amount))
         decision = getattr(self, action)
         decision(int(amount), pot)
-        logging.debug("\n STACK: "+str(self.stack)+"\n VALUE IN HAND: "+str(self.valueInRnd)+"\n******* POT *******\n\n\n\n")
+        logging.debug("\n STACK: "+str(self.stack)+"\n VALUE IN HAND: "+str(self.valueInRnd)+"\n*** POT *****\n\n\n\n")
         logging.debug(pot)
         return
         
@@ -233,12 +255,9 @@ class Player:
             self.allIn=True
         newbet = Bet(self, betAmount, incrementalBet)
         newbet.addCaller(self)
-        self.stack -= incrementalBet
-        assert self.stack >= 0
-        self.valueInRnd += incrementalBet
         logging.debug("Reducing stack by"+str(incrementalBet))
         pot.bets.insert(0,newbet)
-        pot.potValue+=incrementalBet
+        pot.updatePotValueInRound()
         self.atTable.startingPlayer = self
         return 
         
@@ -247,20 +266,17 @@ class Player:
         if pot.bets:
             for upstreamBet in reversed(pot.bets):
                 if self not in upstreamBet.callers:
-                    upstreamBetAmt += upstreamBet.incrementAmt
-                    if upstreamBetAmt > self.stack:
+                    if upstreamBet.incrementAmt > self.stack:
                         logging.debug("CREATE SIDE POT")
-                        pot.createSidePotBet(upstreamBet, self)  #Send index of higher bet
+                        logging.debug("Upstream Bet amt: "+str(upstreamBetAmt)+" stack: "+str(self.stack))
+                        self.allIn=True
+                        pot.createSidePotBet(upstreamBet, self)  
                         return
                     else:
                         upstreamBet.addCaller(self)
-            pot.potValue+=upstreamBetAmt
+            pot.updatePotValueInRound()
         else:
             logging.debug("NO PREV BET")
-        self.stack -= upstreamBetAmt
-        assert self.stack >= 0
-        self.valueInRnd += upstreamBetAmt
-        logging.debug("CALL - Reducing stack by"+str(upstreamBetAmt))
         return 
     
     def Check(self, amount, pot):

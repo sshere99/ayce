@@ -38,7 +38,7 @@ class TestSim1(unittest.TestCase):
         pot, small, big = t.startNewHand()
         Player.TEST_runSim(Player, "./testsims/sim1.csv")
         t.beginBetting(pot, small, big)
-        self.assertEqual(pot.potValue, 1410)  # Test that the total pot value is $1,410
+        self.assertEqual(pot.potValueInRound, 1410)  # Test that the total pot value is $1,410
         self.assertEqual(t.seatedPlayersDict[4].stack, 1000)  #test Patty's stack
         self.assertEqual(t.seatedPlayersDict[5].stack, 700)  #test Lucy's stack
         pot.clearBetsForRound()
@@ -55,7 +55,7 @@ class TestSim1(unittest.TestCase):
         print(pot)
         Player.TEST_runSim(Player, "./testsims/sim2.csv")
         t.beginBetting(pot, small, big)
-        self.assertEqual(pot.potValue, 80)  # Test that the total pot value is $30
+        self.assertEqual(pot.potValueInRound, 80)  # Test that the total pot value is $30
         self.assertEqual(t.seatedPlayersDict[4].stack, 980)  #test Patty's stack
         self.assertEqual(t.seatedPlayersDict[5].stack, 980)  #test Lucy's stack
         self.assertEqual(t.startingPlayer, t.seatedPlayersDict[6])  #confirm its Sally
@@ -127,7 +127,7 @@ class TestSim1(unittest.TestCase):
         self.assertEqual(hand1[3], "Pair_s")
         self.assertEqual(hand2[3], "Pair_s")
 
-    def test_allin(self):
+'''    def test_allin(self):
         """
         Test if all in sim works  - ALL INS
         """
@@ -142,7 +142,7 @@ class TestSim1(unittest.TestCase):
         pot2.clearBetsForRound()
         ####. ADDDO SOME ASSERTS HERE ************
         #self.assertEqual(pot.potValue, 1410)            
-
+'''
               
 if __name__ == '__main__':
     unittest.main()
