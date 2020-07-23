@@ -127,22 +127,47 @@ class TestSim1(unittest.TestCase):
         self.assertEqual(hand1[3], "Pair_s")
         self.assertEqual(hand2[3], "Pair_s")
 
-'''    def test_allin(self):
+    def test_allin(self):
         """
         Test if all in sim works  - ALL INS
         """
-        for player in t.playersInLobby:
-            player.stack=1000
+        t1 = Table(10)
+        joe = Player('sdff', 'Joe', bank=44, stack=500)
+        fred = Player('sdf2', 'Fred', bank=44, stack=100)
+        willis = Player('sdf3', 'willis', bank=44, stack=1000)
+        sally = Player('sdf9', 'Sally', bank=44, stack=800)
+        lucy = Player('sdf8', 'Lucy', bank=44, stack=600)
+        patty = Player('sdf7', 'Patty', bank=44, stack=1000)
+
+        t1.addPlayerToLobby(joe)
+        t1.addPlayerToLobby(fred)
+        t1.addPlayerToLobby(willis)
+        t1.addPlayerToLobby(sally)
+        t1.addPlayerToLobby(lucy)
+        t1.addPlayerToLobby(patty)
+
+        for player in t1.playersInLobby:
+            player.sitDown()
         print(t)
-        t.startGame()
-        pot2, small, big = t.startNewHand()
-        Player.TEST_runSim(Player, "./testsims/allin.csv")
-        t.beginBetting(pot2, small, big)
-        self.assertTrue(t.seatedPlayersDict[5].allIn)
+        t1.startGame()
+        pot2, small, big = t1.startNewHand()
+        Player.TEST_runSim(Player, "./testsims/allin2.csv")
+        t1.beginBetting(pot2, small, big)
+        self.assertTrue(lucy.allIn)
+        self.assertTrue(joe.allIn)
+        self.assertTrue(sally.allIn)
+        self.assertEqual(pot2.potValueInRound, 2800)
+        self.assertEqual(patty.valueInRnd, 0)
+        self.assertEqual(lucy.valueInRnd, 600)
+        self.assertEqual(sally.valueInRnd, 800)
+        self.assertEqual(willis.valueInRnd, 800)
+        self.assertEqual(fred.valueInRnd, 100)
+        self.assertEqual(joe.valueInRnd, 500)
+        collapsedbets = pot2.collapseBets()
+        self.assertEqual(collapsedbets[0].amount, 100)
         pot2.clearBetsForRound()
-        ####. ADDDO SOME ASSERTS HERE ************
-        #self.assertEqual(pot.potValue, 1410)            
-'''
+            
+
               
 if __name__ == '__main__':
     unittest.main()

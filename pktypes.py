@@ -87,6 +87,26 @@ class Pot:
             p.valueInRnd=0  # reset the value in hand amt
         return
     
+    ## Collapse bets to get side pots
+    def collapseBets(self):
+        prevbet = self.bets[-1]
+        sidebets = []
+        for bet in reversed(self.bets):
+            names = [p.playname for p in bet.callers]
+            if len(set(prevbet.callers)-set(bet.callers)) > 0:
+                sidebets.append(prevbet)
+            prevbet = bet
+        if self.bets[0] not in sidebets:
+            sidebets.append(self.bets[0])  # The highest level bet will need to be evaluated
+        for i in range(len(sidebets)):
+            bet = sidebets[i]
+            if i>0:
+                prevbet = sidebets[i-1]
+                bet.incrementAmt = bet.amount - prevbet.amount 
+            else:
+                bet.incrementAmt = bet.amount
+        return sidebets
+    
     def __str__(self):
         resp="Bets are :"
         for b in self.bets:
@@ -105,7 +125,6 @@ class Bet:
     def __init__(self, player, amount, incrementAmt):
         self.raiser=player
         self.callers=[]
-        self.closed=False
         self.amount=amount
         self.incrementAmt=incrementAmt
     
