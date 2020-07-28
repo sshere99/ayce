@@ -29,6 +29,7 @@ class Pot:
         self.potValue=0      # Total pot across multiple rounds
         self.potValueInRound=0      # Size of pot for the given round of betting
         self.bets=[]   #Array of bet objects for given betting round, at end of betting rnd is checked for side pots then cleared
+        self.prevRoundBets = {}  # dict of previous round collapsed bets. keys are number for betting round
         self.sidePots=[]
         self.table=table
     
@@ -80,32 +81,57 @@ class Pot:
         self.potValueInRound = roundtotal
         logging.debug("pot value in round is "+str(roundtotal))
     
-    def clearBetsForRound(self):
-        self.potValue += self.potValueInRound
-        self.bets=[]  # Clear bet objects for this round of betting
-        for p in self.table.seatedPlayers:
-            p.valueInRnd=0  # reset the value in hand amt
-        return
-    
     ## Collapse bets to get side pots
     def collapseBets(self):
-        prevbet = self.bets[-1]
         sidebets = []
-        for bet in reversed(self.bets):
-            names = [p.playname for p in bet.callers]
-            if len(set(prevbet.callers)-set(bet.callers)) > 0:
-                sidebets.append(prevbet)
-            prevbet = bet
-        if self.bets[0] not in sidebets:
-            sidebets.append(self.bets[0])  # The highest level bet will need to be evaluated
-        for i in range(len(sidebets)):
-            bet = sidebets[i]
-            if i>0:
-                prevbet = sidebets[i-1]
-                bet.incrementAmt = bet.amount - prevbet.amount 
-            else:
-                bet.incrementAmt = bet.amount
-        return sidebets
+        if self.bets:
+            prevbet = self.bets[-1]
+            for bet in reversed(self.bets):
+                names = [p.playname for p in bet.callers]
+                if len(set(prevbet.callers)-set(bet.callers)) > 0:
+                    sidebets.append(prevbet)
+                prevbet = bet
+            if self.bets[0] not in sidebets:
+                sidebets.append(self.bets[0])  # The highest level bet will need to be evaluated
+            for i in range(len(sidebets)):
+                bet = sidebets[i]
+                if i>0:
+                    prevbet = sidebets[i-1]
+                    bet.incrementAmt = bet.amount - prevbet.amount 
+                else:
+                    bet.incrementAmt = bet.amount
+            self.prevRoundBets[self.table.bettingRound] = sidebets
+            self.bets = []
+            self.potValue += self.potValueInRound
+            self.potValueInRound = 0
+            players = self.table.seatedPlayers
+            for p in players:  # Reset the players value in betting rnd since a new round is starting
+                p.valueInRnd = 0
+        return 
+    
+    ## Convert collapsed bets into showdowns to determine pot winners
+    def getShowdowns(self):
+        allbetlist = []
+        for k in sorted(self.prevRoundBets.keys()):
+            allbetlist.append(self.prevRoundBets[k])
+        flat_list = [item for sublist in allbetlist for item in sublist]
+        showdowns={}
+        betnum=1
+        curbet = flat_list.pop(0)
+        curcallers = set(curbet.callers)
+        bet_total = curbet.betTotalIncremental
+        showdowns[betnum]= {'amt':bet_total, 'callers':curcallers}
+        while flat_list:
+            nextbet = flat_list.pop(0)
+            nextcallers = set(nextbet.callers)
+            if len(curcallers-nextcallers)>0:
+                showdowns[betnum]= {'amt':bet_total, 'callers':curcallers}
+                bet_total = 0
+                betnum+=1
+            bet_total += nextbet.betTotalIncremental
+            curcallers = nextcallers  
+            showdowns[betnum]= {'amt':bet_total, 'callers':curcallers}
+        return showdowns 
     
     def __str__(self):
         resp="Bets are :"
@@ -141,8 +167,17 @@ class Bet:
         if callerToRemove in self.callers:
             self.callers.remove(callerToRemove)
         
+    @property
+    def betTotal(self):
+        return len(self.callers)*self.amount  
+    
+    @property
+    def betTotalIncremental(self):
+        return len(self.callers)*self.incrementAmt
+    
     def __str__(self):
         resp = "BET OBJECT \n amount:"+str(self.amount)+" INCREMENT AMT: "+str(self.incrementAmt)
+        resp += "\nCALLERS:"+str([c.playname for c in self.callers])
         return resp
     
 class Deck:
@@ -215,6 +250,7 @@ class Player:
         self.hand=[]
         self.folded=False
         self.allIn=False
+        self.valueInRnd=0
     
     def getUpstreamBetAmt(self, pot):
         upstreamBetAmt = 0
@@ -435,10 +471,6 @@ class Table:
         newLobbyList = [p for p in self.playersInLobby if not p.usrId == playerToRemove.usrId]
         self.playersInLobby = newPlayerList
         
-    def clearPlayerHands(self):
-        for player in self.seatedPlayers:
-            player.clearHand()
-    
     def startNewHand(self):
         logging.debug("New HAND")
         self.bettingRound=0
@@ -446,7 +478,7 @@ class Table:
             logging.warning("Need at least 3 seated players to start")
             return
         self.numHands+=1
-        self.clearPlayerHands()
+        self.clearAllPlayerHands()
         self.moveBtton()
         logging.info("Button is at seat Number: "+str(self.buttonSeatNum))
         self.deck.repopulate()
@@ -461,7 +493,6 @@ class Table:
         bigBlindPlyr.Raise(Table.BLINDS[1], pot)   
          
     def deal(self, smallBlindPlyr):
-        self.clearAllPlayerHands()
         cur_player = smallBlindPlyr
         for _ in range(2):
             for _ in range(len(self.seatedPlayers)):
@@ -489,7 +520,7 @@ class Table:
             self.startingPlayer = bigBlindPlyr #This is the player that started the action with their bet
             bettingPlayer = self.getNextSeatedPlayer(bigBlindPlyr)  #New betting starts to right of BB
         else:
-            self.startingPlayer = bettingPlayer = smallBlindPlyr #Action & betting starts to right of button
+            self.startingPlayer =  bettingPlayer = smallBlindPlyr  #Action & betting starts to right of button
         actionRemains = True
         logging.debug("Betting Round "+str(self.bettingRound)+"Action begins with "+bettingPlayer.playname)
         while actionRemains:
@@ -499,7 +530,6 @@ class Table:
                 actionRemains = False
         logging.debug("Betting round complete + Pot details:\n")
         logging.debug(pot)
-        #pot.clearBetsForRound()
         return
     
     def printPlayerHands(self):

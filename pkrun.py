@@ -8,3 +8,9 @@ print(d)
 
 username = input("Enter username:")
 print("Username is: " + username)
+
+
+
+
+def startGame(players):
+    pass
