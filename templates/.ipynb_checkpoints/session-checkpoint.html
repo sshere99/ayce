@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <title>Flask_Chat_App</title>
+  </head>
+  <body>
+      
+    <button type="button">Start Gamehhh</button>
+
+      
+    <h3 style='color: #ccc;font-size: 30px;'>No message yet..</h3>
+    <div class="message_holder"></div>
+
+    <form action="" method="POST">
+      <input type="text" class="username" placeholder="User Name"/>
+      <input type="text" class="message" placeholder="Messages"/>
+      <input type="submit"/>
+    </form>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.min.js"></script>
+    <script type="text/javascript">
+
+      var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+      socket.on( 'connect', function() {
+        socket.emit( 'my event', {
+          data: 'User Connected'
+        } )
+        var form = $( 'form' ).on( 'submit', function( e ) {
+          e.preventDefault()
+          let user_name = $( 'input.username' ).val()
+          let user_input = $( 'input.message' ).val()
+          socket.emit( 'my event', {
+            user_name : user_name,
+            message : user_input
+          } )
+          $( 'input.message' ).val( '' ).focus()
+        } )
+        var but = $('button').on('click', function( e ) {
+          e.preventDefault()
+          socket.emit('get card', {
+            user_name : 'BUTTON TEST',
+            message : 'BUTTON TESTSS'
+          })
+        })
+      } )
+      socket.on( 'my response', function( msg ) {
+        console.log( msg )
+        if( typeof msg.user_name !== 'undefined' ) {
+          $( 'h3' ).remove()
+          $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg.user_name+'</b> '+msg.message+'</div>' )
+        }
+      })
+       socket.on( 'get card resp', function( msg ) {
+        console.log( msg )
+        if( typeof msg.user_name !== 'undefined' ) {
+          $( 'h3' ).remove()
+          $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg.user_name+'</b> '+msg.message+'</div>' )
+        }
+      }) 
+    </script>
+
+    <h1>CSS Playing Cards</h1>
+
+
+
+<!-- ul.table -->
+    <h3>Lying on the Table</h3>
+
+
+    <ul class="table">
+        <li>
+            <a class="card rank-2 diams" href="#">
+                <span class="rank">2</span>
+                <span class="suit">&diams;</span>
+            </a>
+        </li>
+        <li>
+            <a class="card rank-q hearts" href="#">
+                <span class="rank">Q</span>
+                <span class="suit">&hearts;</span>
+            </a>
+        </li>
+        <li>
+            <a class="card rank-a clubs" href="#">
+                <span class="rank">A</span>
+                <span class="suit">&clubs;</span>
+            </a>
+        </li>
+        <li>
+            <strong>
+                <a class="card rank-3 hearts" href="#">
+                    <span class="rank">3</span>
+                    <span class="suit">&hearts;</span>
+                </a>
+            </strong>
+        </li>
+        <li>
+            <label for="c-10C" class="card rank-10 clubs">
+                <span class="rank">10</span>
+                <span class="suit">&clubs;</span>
+                <input type="checkbox" name="c-10C" id="c-10C" value="select" />
+            </label>
+        </li>
+        <li>
+            <label for="c-JD" class="card rank-j diams">
+                <span class="rank">J</span>
+                <span class="suit">&diams;</span>
+                <input type="checkbox" name="c-JD" id="c-JD" value="select" />
+            </label>
+        </li>
+        <li>
+            <label for="c-9S" class="card rank-9 spades">
+                <span class="rank">9</span>
+                <span class="suit">&spades;</span>
+                <input type="checkbox" name="c-9S" id="c-9S" value="select" />
+            </label>
+        </li>
+    </ul>
+    <div class="clear"></div>
+  </body>
+  </html>

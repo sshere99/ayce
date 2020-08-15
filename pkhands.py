@@ -95,6 +95,8 @@ def checkPairs(vals):
 
 def getHand(allCards):
     
+    assert len(allCards)==7
+    
     #isHandType = (True/False, vals of hand, hand score, str(name of hand))
     values = [v.value for v in allCards]
     suits = [v.suit for v in allCards]

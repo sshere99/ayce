@@ -1,0 +1,304 @@
+.main {
+  width: 1300px;
+}
+
+.table {
+  background-color: green;
+  height: 500px;
+  width: 70%; 
+  border-radius: 50%;
+  position: relative;
+  left: 105px;
+  top: 100px;
+ /* margin: 0 auto;*/
+  border: 1em solid black;
+}
+
+.board {
+  position: relative;
+  top: 40%;
+  left: 30%;
+}
+.card-small {
+  border: .2em solid black;
+  border-radius: 10%;
+  height: 70px;
+  width: 49px; /*70% of height*/
+  margin-right: 5px;
+  float: left;
+  background-color: white;
+ }
+
+.card-text {
+  margin: 0;
+  margin-top: 15%;
+  left: 24px;
+  text-align: center;
+  font-size: 1.4em;
+  font-weight: bold;
+  padding: 0;
+}
+
+.card-img {
+  text-align: center;
+  margin: 0;
+  font-size: 1.5em;
+}
+
+.card-tiny {
+  border: .1em solid black;
+  border-radius: 10%;
+  margin-top: -10%;
+  height: 60px;
+  width: 42px; /*70% of height*/
+  margin-right: 2px;
+  float: right;
+  background-color: white;
+ }
+
+.card-facedown {
+  border: .1em solid black;
+  border-radius: 10%;
+  margin-top: -10%;
+  height: 60px;
+  width: 42px; /*70% of height*/
+  margin-right: 2px;
+  float: right;
+  background-color: #C36F74;
+ }
+
+.card-texttiny {
+  margin: 0;
+  margin-top: 15%;
+  left: 24px;
+  text-align: center;
+  font-size: 1.4em;
+  font-weight: bold;
+  padding: 0;
+}
+
+.card-imgtiny {
+  text-align: center;
+  margin: 0;
+  font-size: 1.5em;
+}
+
+
+.red {
+  color: red;
+}
+
+.black {
+  color: black;
+}
+
+
+.pokerchip{
+  margin:0.1em;
+  font-size:0.3em;
+  position:absolute;
+  display:inline-block;
+  -webkit-box-sizing:border-box;
+  -moz-box-sizing:border-box;
+  box-sizing:border-box;
+  width:5em;
+  height:5em;
+  background:#555;
+  border-radius:50%;
+  border:.5em dashed white;
+  transition:all .5s ease;
+  backface-visibility:hidden;
+  right: -23%;
+  top: 3%;
+}
+
+.pokerchip.red{
+  background:#DD4631;
+}
+
+.pokerchip.blue{
+  background:#317DDD;
+}
+
+.pokerchip.flat{
+  box-shadow:0 0 0 .2em #fff;
+}
+
+.pokerchip.iso{
+  transform: perspective(3000px) rotateX(55deg) rotateZ(-40deg);
+  box-shadow:
+    -1px 1px 0px #555,
+    -2px 2px 0px #555,
+    -3px 3px 0px #555,
+    -4px 4px 0px #555,
+    -5px 5px 0px #555,
+    -6px 6px 10px #555;
+}
+
+.pokerchip.flat:hover{
+  transform:rotate(90deg);
+}
+
+.pokerchip.iso:hover{
+  transform: perspective(3000px) rotateX(55deg) rotateZ(-40deg) translateZ(.5em);
+}
+
+.pokerchip.one{
+  right: -23%;
+  top: -3%;
+}
+
+.pokerchip.two{
+  right: 3%;
+  top: -53%;
+}
+
+.pokerchip.three{
+  left: 30%;
+  top: -53%;
+}
+
+.pokerchip.four{
+  left: -20%;
+  top: -53%;
+}
+
+.pokerchip.five{
+  left: -30%;
+  top: 13%;
+}
+
+.pokerchip.six{
+  left: -20%;
+  top: 93%;
+}
+
+.pokerchip.seven{
+  left: 23%;
+  top: 110%;
+}
+
+.pokerchip.eight{
+  left: 43%;
+  top: 110%;
+}
+
+.pokerchip.nine{
+  right: -20%;
+  top: 110%;
+}
+
+.pokerchip.ten{
+  right: -30%;
+  top: 13%;
+}
+
+.pokerchip.board{
+  left: 50%;
+  top: 60%;
+}
+
+.box{
+    position:absolute;
+    border: 2px solid black;
+    width: 160px;
+    height: 90px;
+    background-color: #DCDCDC;
+    border-radius: 10%;
+}
+
+.box.one{
+    left: -5%;
+    bottom: 10%;
+}
+
+.box.four{
+    left: 85%;
+    bottom: 10%;
+}
+
+.box.three{
+    left: 60%;
+    bottom: -9%;
+}
+
+.box.two{
+    left: 25%;
+    bottom: -9%;
+}
+
+.box.nine{
+    left: 1%;
+    bottom: 75%;
+}
+
+.box.six{
+    left: 85%;
+    bottom: 75%;
+}
+
+.box.seven{
+    left: 60%;
+    bottom: 89%;
+}
+
+.box.eight{
+    left: 30%;
+    bottom: 89%;
+}
+
+.box.ten{
+    left: -9%;
+    bottom: 42%;
+}
+
+.box.five{
+    left: 96%;
+    bottom: 42%;
+}
+
+.circl1{
+    position:absolute;
+    border: 2px solid black;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    left: 3%;
+    top: 3%;
+}
+
+
+.player-text {
+  position:absolute;
+  margin: 0;
+  margin-bottom: 5%;
+  text-align: center;
+  font-size: 0.8em;
+  font-weight: bold;
+  padding: 0;
+  bottom: 10%;  
+  left: 5%;
+}
+
+/* Split the screen in half */
+.split {
+  height: 100%;
+  width: 75%;
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  overflow-x: hidden;
+  padding-top: 20px;
+}
+
+/* Control the left side */
+.left {
+  left: 0;
+  background-color: #404040;
+}
+
+/* Control the right side */
+.right {
+  right: 0;
+  background-color: black;
+}

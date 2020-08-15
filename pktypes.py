@@ -1,6 +1,7 @@
 import random
 import logging
 import csv
+from pkhands import *
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -124,7 +125,7 @@ class Pot:
         while flat_list:
             nextbet = flat_list.pop(0)
             nextcallers = set(nextbet.callers)
-            if len(curcallers-nextcallers)>0:
+            if len(curcallers-nextcallers)>0:   #This determines if a new side pot has been hit
                 showdowns[betnum]= {'amt':bet_total, 'callers':curcallers}
                 bet_total = 0
                 betnum+=1
@@ -228,7 +229,7 @@ class Player:
         self.bank=bank
         self.stack=stack
         self.playname=playname
-        self.atTable=False
+        self.atTable=False  #Table object that player is at
         self.seated=False
         self.seatNum=None
         self.hand=[]
@@ -242,7 +243,11 @@ class Player:
         for card in self.hand:
             readableHand.append(card.rawval)
         return readableHand   
-        
+    
+    @property
+    def handScore(self):
+        return getHand(self.atTable.communityCards + self.hand)
+    
     def addCardToHand(self, card):
         self.hand.append(card)
         
@@ -530,6 +535,26 @@ class Table:
                 actionRemains = False
         logging.debug("Betting round complete + Pot details:\n")
         logging.debug(pot)
+        return
+    
+    def settlePots(self, pot):
+        pot.collapseBets()
+        sdowns = pot.getShowdowns()
+        for s in sdowns:
+            logging.debug("SHOWDOWN "+str(s))
+            callerList = list(sdowns[s]['callers'])
+            callerList.sort(key=lambda x: x.handScore[2], reverse=True)
+            logging.debug([p.playname for p in callerList])
+            allscores=[x.handScore[2] for x in callerList] #Array of all the scores
+            logging.debug(allscores)
+            if allscores[0] in allscores[1:]:  #Someone else has the winning score
+                logging.debug("CHOP POT")
+                chopIdxs = [i for i, val in enumerate(allscores) if val==allscores[0]] 
+                chopPlayers=[callerList[idx] for idx in chopIdxs]
+                logging.debug("winners "+str([x.playname for x in chopPlayers])+" with "+callerList[0].handScore[3]+" "+str(allscores[0]))
+            else:
+                winnerPlayer = callerList[0]
+                logging.debug("- winner- "+str(winnerPlayer.playname)+" w/ "+winnerPlayer.handScore[3]+" "+str(winnerPlayer.handScore[2]))
         return
     
     def printPlayerHands(self):
