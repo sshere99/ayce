@@ -1,4 +1,4 @@
-var socket = io.connect('http://' + document.domain + ':' + location.port);
+      var socket = io.connect('http://' + document.domain + ':' + location.port);
 
       socket.on( 'connect', function() {
         
@@ -41,4 +41,8 @@ var socket = io.connect('http://' + document.domain + ':' + location.port);
           $( 'h3' ).remove()
           $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg.user_name+'</b> '+msg.message+'</div>' )
         }
-      }) 
+      })
+
+        socket.on('output', function(msg){
+            $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg+'</b> '+msg+'</div>' )
+          });
