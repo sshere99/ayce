@@ -81,7 +81,7 @@ def run_game(client_id):
     for player in t.playersInLobby:
         player.sitDown()
     
-    rsp = {'val1': 'test stuff', 
+    rsp = {'val1': 'test stuff branch', 
            'box1': myd['8s']+myd['8s']+pTxt('chec'), 
            'box2': myd['facedown']+pTxt('check10'),
            'box4': myd['facedown']+pTxt('check2'),
