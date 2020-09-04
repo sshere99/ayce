@@ -17,14 +17,22 @@
        
     <h3 style='color: white;font-size: 20px;'>Balance At Table:</h3>
     <div class="balance_holder"></div>
-    <div class="message_holder"></div>
-
+    <h2 style='color: white;font-size: 20px;'>enter name and table to join</h2>
     <form action="" method="POST">
       <input type="text" class="username" placeholder="User Name"/>
-      <input type="text" class="message" placeholder="Messages"/>
+      <input type="text" class="tableid" placeholder="TableID"/>
       <input type="submit"/>
     </form>
 
+    <div class="message_holder"> 
+    </div>  
+       
+    <div class="table_holder">
+        <div class="msg_innr" style='color: white;font-size: 20px;'>
+            dd
+        </div>   
+    </div>   
+       
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.min.js"></script>
@@ -38,37 +46,32 @@
       <div class="pokerchip iso blue board"></div>
       <div class="box one">
          <img src="{{ url_for('static', filename='img_avatar.png') }}" alt="Avatar" class="circl1">
-         <p class="player-text black">hello</p>
           <div class="pokerchip iso red one"></div>
-        <div class="card-tiny">
-           <p class="card-texttiny black">10</p>
-           <p class="card-imgtiny black">&spades;</p>
-        </div>
-        <div class="card-tiny">
-           <p class="card-texttiny black">9</p>
-           <p class="card-imgtiny black">&spades;</p>
-        </div>
+         <div id="bone">
+            <div class="card-tiny">
+               <p class="card-texttiny black">10</p>
+               <p class="card-imgtiny black">&spades;</p>
+            </div>
+            <div class="card-tiny">
+               <p class="card-texttiny black">9</p>
+               <p class="card-imgtiny black">&spades;</p>
+            </div>
+          </div>   
       </div>
       <div class="box two">
-        <div class="card-facedown"></div>
-        <div class="card-facedown"></div>
          <img src="{{ url_for('static', filename='img_avatar.png') }}" alt="Avatar" class="circl1">
-         <p class="player-text black">hello</p> 
          <div class="pokerchip iso red two"></div>
+          <div id="btwo"></div>
       </div>
-      <div class="box three">
+      <div class="box three" id="bthree">
          <img src="{{ url_for('static', filename='img_avatar.png') }}" alt="Avatar" class="circl1">
-         <p class="player-text black">hello</p> 
          <div class="pokerchip iso red three"></div>
-        <div class="card-facedown"></div>
-        <div class="card-facedown"></div>
+            <div id="bthree"></div>
       </div>
       <div class="box four">
          <img src="{{ url_for('static', filename='img_avatar.png') }}" alt="Avatar" class="circl1">
-         <p class="player-text black">hello</p> 
          <div class="pokerchip iso red four"></div>
-        <div class="card-facedown"></div>
-        <div class="card-facedown"></div>
+            <div id="bfour"></div>
       </div> 
     <div class="box five">
          <img src="{{ url_for('static', filename='img_avatar.png') }}" alt="Avatar" class="circl1">

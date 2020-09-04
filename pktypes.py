@@ -3,8 +3,13 @@ import logging
 import csv
 from pkhands import *
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 
+myd = {'8s': '<div class="card-tiny"><p class="card-texttiny black">8</p><p class="card-imgtiny black">&spades;</p></div>',
+       '8h': '<div class="card-tiny"><p class="card-texttiny red">8</p><p class="card-imgtiny red">&hearts;</p></div>',
+       'facedown': '<div class="card-facedown"></div><div class="card-facedown"></div>'
+      }
+pTxt = lambda x : '<p class="player-text black">'+str(x)+'</p>'
 
 class Card:
 
@@ -476,8 +481,10 @@ class Table:
         newLobbyList = [p for p in self.playersInLobby if not p.usrId == playerToRemove.usrId]
         self.playersInLobby = newPlayerList
         
-    def startNewHand(self):
+    def startNewHand(self, socketio):
         logging.debug("New HAND")
+        if socketio:
+            socketio.emit('output', 'NEW HAND START')
         self.bettingRound=0
         if(len(self.occupiedSeatNums))<self.MINPLAYERS:
             logging.warning("Need at least 3 seated players to start")

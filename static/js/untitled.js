@@ -9,12 +9,12 @@
             var form = $( 'form' ).on( 'submit', function( e ) {
               e.preventDefault()
               let user_name = $( 'input.username' ).val()
-              let user_input = $( 'input.message' ).val()
-              socket.emit( 'my event', {
-                user_name : user_name,
-                message : user_input
+              let t_id = $( 'input.tableid' ).val()
+              socket.emit( 'join', {
+                username : user_name,
+                tableId : t_id
               } )
-              $( 'input.message' ).val( '' ).focus()
+              $( 'input.tableid' ).val( '' ).focus()
             } )
 
             var but = $('#start_game').on('click', function( e ) {
@@ -34,15 +34,27 @@
         }
       })
 
-
        socket.on( 'get card resp', function( msg ) {
         console.log( msg )
         if( typeof msg.user_name !== 'undefined' ) {
           $( 'h3' ).remove()
-          $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg.user_name+'</b> '+msg.message+'</div>' )
+          $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg.user_name+'</b> '+msg.tableId+'</div>' )
         }
       })
 
         socket.on('output', function(msg){
             $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg+'</b> '+msg+'</div>' )
           });
+
+     
+       socket.on('table_state', function(msg){
+            $('div.msg_innr').html(
+                $('<span/>', {text: 'Some text'+msg.val1})
+                )
+            $('#bone').html(msg.box1)
+            $('#btwo').html(msg.box2) 
+            $('#bfour').html(msg.box4) 
+          });
+
+
+          

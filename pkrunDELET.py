@@ -1,5 +1,5 @@
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template
 from flask import request
 from flask_socketio import SocketIO, join_room, leave_room
 import pktypes
@@ -25,7 +25,7 @@ def sessions():
 def handle_connect():
     connected = True
     print('Client connected'+' ID IS: '+str(request.sid))
-    send_message_to_client(request.sid, 'Connected to server please join table')
+    send_message_to_client(request.sid, 'Connected to server please join room')
     clients.append(request.sid)
 
 @socketio.on('disconnect')
@@ -38,7 +38,7 @@ def on_join(data):
     username = data['username']
     tableId = data['tableId']
     join_room(tableId)
-    send_message_to_room(tableId, str(username)+'joined the table'+str(tableId))
+    send_message_to_room(tableId, str(username)+'joined room')
     #send(username + ' has entered the room.', channel=channel)
     
 def send_message_to_client(client_id, data):
@@ -56,10 +56,16 @@ def handle_my_custom_event(json, methods=['GET', 'POST']):
 def handle_start_game_event(json, methods=['GET', 'POST']):
     print('received start request: ' + str(json)+' ID IS: '+str(request.sid))
     print(json.keys())
+    #f={'user_name':'yeas', 'message':'yup'}
+    #socketio.emit('get card resp', f, callback=messageReceived)
+    #print("DO SOME MORE STUFF")
+    #t=create_table()
+    #socketio.emit('output', t.__str__(), callback=messageReceived)
     run_game(request.sid)
     
 def messageReceived(methods=['GET', 'POST']):
     print('message was received!!!')
+    
     
 def run_game(client_id):
     #create Table
@@ -81,12 +87,7 @@ def run_game(client_id):
     for player in t.playersInLobby:
         player.sitDown()
     
-    rsp = {'val1': 'test stuff', 
-           'box1': myd['8s']+myd['8s']+pTxt('chec'), 
-           'box2': myd['facedown']+pTxt('check10'),
-           'box4': myd['facedown']+pTxt('check2'),
-          }
-    socketio.emit('table_state', rsp, callback=messageReceived)
+    socketio.emit('output', t.__str__(), callback=messageReceived)
     t.startGame()
     pot, small, big = t.startNewHand(socketio)
     
