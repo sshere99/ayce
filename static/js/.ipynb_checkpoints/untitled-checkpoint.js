@@ -53,7 +53,11 @@
                 )
             $('#bone').html(msg.box1)
             $('#btwo').html(msg.box2) 
-            $('#bfour').html(msg.box4) 
+            $('#bfour').html(msg.box4)
+           $('#bfive').html(msg.box5)
+           $('#bsix').html(msg.box6)
+           $('#bseven').html(msg.box7)
+           $('#beight').html(msg.box8)
           });
 
 

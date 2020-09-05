@@ -11,6 +11,9 @@ myd = {'8s': '<div class="card-tiny"><p class="card-texttiny black">8</p><p clas
       }
 pTxt = lambda x : '<p class="player-text black">'+str(x)+'</p>'
 
+def messageReceived(methods=['GET', 'POST']):
+    print('message was received!!!')
+
 class Card:
 
     RANKS=['2','3','4','5','6','7','8','9','10','J', 'Q', 'K', 'A']
@@ -413,6 +416,7 @@ class Table:
         self.openSeatNums=list(range(maxseats))  #Unordered list of open seat numbers. Starts at 0
         self.buttonSeatNum=None     # Seat number for button
         self.numHands=0
+        self.socketio=None
         self.startingPlayer=None  
         self.bettingRound=0 #1 = preflop, 2=flop, 3=turn, 4=river
         self.communityCards=[]
@@ -481,10 +485,10 @@ class Table:
         newLobbyList = [p for p in self.playersInLobby if not p.usrId == playerToRemove.usrId]
         self.playersInLobby = newPlayerList
         
-    def startNewHand(self, socketio):
+    def startNewHand(self):
         logging.debug("New HAND")
-        if socketio:
-            socketio.emit('output', 'NEW HAND START')
+        if self.socketio:
+            self.socketio.emit('output', 'NEW HAND START')
         self.bettingRound=0
         if(len(self.occupiedSeatNums))<self.MINPLAYERS:
             logging.warning("Need at least 3 seated players to start")
@@ -565,8 +569,19 @@ class Table:
         return
     
     def printPlayerHands(self):
+        rsp={'val1': 'WORKING'}
         for _, player in self.seatedPlayersDict.items():
             print("Player "+player.playname+" hand is "+str(player.humanReadableHand))
+            pkey = "box"+str(player.seatNum)
+            rsp[pkey] = myd['8h']+myd['8s']+pTxt('YYY')
+        
+        rsp2 = {'val1': 'NUM2', 
+            'box1': myd['8h']+myd['8h']+pTxt('checQ'), 
+            'box5': myd['facedown']+pTxt('check10Q'),
+            'box4': myd['facedown']+pTxt('check2Q'),
+             }
+        self.socketio.emit('table_state', rsp, callback=messageReceived)
+        self.socketio.emit('table_state', rsp2, room='sdf')  ## SEND SPECIFIC CARD VIEW TO DIFFERENT ROOMS
             
     def moveBtton(self):
         self.buttonSeatNum = self.getNextSeatNum(self.buttonSeatNum)
@@ -610,6 +625,6 @@ class Table:
         return resp
     
 
+
     
-    
-                
+             

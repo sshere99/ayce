@@ -35,10 +35,10 @@ def handle_disconnect():
 
 @socketio.on('join')
 def on_join(data):
-    username = data['username']
+    room_ID = data['username']
     tableId = data['tableId']
-    join_room(tableId)
-    send_message_to_room(tableId, str(username)+'joined the table'+str(tableId))
+    join_room(room_ID)
+    send_message_to_room(room_ID, str(room_ID)+'joined the table'+str(tableId))
     #send(username + ' has entered the room.', channel=channel)
     
 def send_message_to_client(client_id, data):
@@ -80,15 +80,10 @@ def run_game(client_id):
 
     for player in t.playersInLobby:
         player.sitDown()
-    
-    rsp = {'val1': 'test stuff branch v2', 
-           'box1': myd['8s']+myd['8s']+pTxt('chec'), 
-           'box2': myd['facedown']+pTxt('check10'),
-           'box4': myd['facedown']+pTxt('check2'),
-          }
-    socketio.emit('table_state', rsp, callback=messageReceived)
+
+    t.socketio = socketio
     t.startGame()
-    pot, small, big = t.startNewHand(socketio)
+    pot, small, big = t.startNewHand()
     
     
 if __name__ == '__main__':
