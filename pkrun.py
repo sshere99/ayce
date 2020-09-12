@@ -13,13 +13,21 @@ app.config['SECRET_KEY'] = 'vnkdjnfjknfl1232#'
 socketio = SocketIO(app)
 connected = False
 clients = []
-tables = []
+tables = ['table1','table2']
 
 print("STARTING SERVER!!!!!!!")
 
 @app.route('/')
 def sessions():
     return render_template('session3.html')
+
+@app.route('/<tableURI>')
+def table(tableURI):
+    print(tableURI)
+    if tableURI in tables:
+        return render_template('session3.html')
+    else:
+        return render_template('err.html')
     
 @socketio.on('connect')
 def handle_connect():
@@ -64,12 +72,12 @@ def messageReceived(methods=['GET', 'POST']):
 def run_game(client_id):
     #create Table
     t = Table(10)
-    joe = Player('sdff', 'Joe', bank=44, stack=500)
-    fred = Player('sdf2', 'Fred', bank=44, stack=100)
-    willis = Player('sdf3', 'willis', bank=44, stack=1000)
-    sally = Player('sdf9', 'Sally', bank=44, stack=1800)
-    lucy = Player('sdf8', 'Lucy', bank=44, stack=1600)
-    patty = Player('sdf7', 'Patty', bank=44, stack=1000)
+    joe = Player('Joe_', 'Joe', bank=44, stack=500)
+    fred = Player('Fred_', 'Fred', bank=44, stack=100)
+    willis = Player('Willis_', 'willis', bank=44, stack=1000)
+    sally = Player('Sally_', 'Sally', bank=44, stack=1800)
+    lucy = Player('Lucy_', 'Lucy', bank=44, stack=1600)
+    patty = Player('Patty_', 'Patty', bank=44, stack=1000)
 
     t.addPlayerToLobby(joe)
     t.addPlayerToLobby(fred)

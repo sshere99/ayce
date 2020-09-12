@@ -573,15 +573,17 @@ class Table:
         for _, player in self.seatedPlayersDict.items():
             print("Player "+player.playname+" hand is "+str(player.humanReadableHand))
             pkey = "box"+str(player.seatNum)
-            rsp[pkey] = myd['8h']+myd['8s']+pTxt('YYY')
+            rsp[pkey] = myd['8h']+myd['8s']+pTxt(player.playname)
         
         rsp2 = {'val1': 'NUM2', 
             'box1': myd['8h']+myd['8h']+pTxt('checQ'), 
             'box5': myd['facedown']+pTxt('check10Q'),
             'box4': myd['facedown']+pTxt('check2Q'),
              }
-        self.socketio.emit('table_state', rsp, callback=messageReceived)
-        self.socketio.emit('table_state', rsp2, room='sdf')  ## SEND SPECIFIC CARD VIEW TO DIFFERENT ROOMS
+        
+        if self.socketio:
+            self.socketio.emit('table_state', rsp, room='Joe_', callback=messageReceived)
+            self.socketio.emit('table_state', rsp2, room='Willis_')  ## SEND SPECIFIC CARD VIEW TO DIFFERENT ROOMS
             
     def moveBtton(self):
         self.buttonSeatNum = self.getNextSeatNum(self.buttonSeatNum)
