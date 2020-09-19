@@ -1,38 +1,37 @@
       var socket = io.connect('http://' + document.domain + ':' + location.port);
 
       socket.on( 'connect', function() {
-        
-            socket.emit( 'my event', {
-                  data: 'User Connected'
-                    } )
-        
+                
+            $("#sit_stand2").hide();
+            $("#main_user_panel").hide();
+          
             var form = $( 'form' ).on( 'submit', function( e ) {
               e.preventDefault()
               let user_name = $( 'input.username' ).val()
-              let t_id = $( 'input.tableid' ).val()
+              let tb_id = $( "h3#tblURI" ).get(0)
               socket.emit( 'join', {
-                username : user_name,
-                tableId : t_id
+                urname : user_name,
+                tabId : $('#tblURI').html()
               } )
-              $( 'input.tableid' ).val( '' ).focus()
-            } )
-
-            var but = $('#start_game').on('click', function( e ) {
-              e.preventDefault()
-              socket.emit('start pause', {
-                user_name : 'User',
-                message : 'User X Pressed Start'
-              })
-            })
+            } )              
         } )
 
-      socket.on( 'my response', function( msg ) {
-        console.log( msg )
-        if( typeof msg.user_name !== 'undefined' ) {
-          $( 'h3' ).remove()
-          $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg.user_name+'</b> '+msg.message+'</div>' )
-        }
-      })
+        $("#sit_stand2").on('click', function( ) {
+             $("#sit_stand2").hide();
+            alert("The paragraph was clicked.");
+            $( 'div.userinfo' ).html('');
+            $("div.formholder").show(); 
+            socket.emit('sit stand', {user_name : 'User'})
+        });
+
+      $("#tablestate").on('change',  function( ) {
+              let tbl_state = $( "#tablestate" ).val();
+              alert(tbl_state);
+            socket.emit('start pause', {
+                message: tbl_state,
+                tbl: $('#tblURI').html()
+              })
+            });
 
        socket.on( 'get card resp', function( msg ) {
         console.log( msg )
@@ -46,6 +45,19 @@
             $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg+'</b> '+msg+'</div>' )
           });
 
+        socket.on('online', function(msg){
+            $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg+'</b> '+msg+'</div>' )
+            $("#main_user_panel").show();
+          });
+
+        socket.on('seat_user', function(msg){
+          $("div.formholder").hide();  
+          $( 'div.userinfo' ).html(
+            '<br /><b style="color:white;font-size: 20px;">'+msg+
+            ' you are seated<br /><br />'
+          )
+            $("#sit_stand2").show();
+          });
      
        socket.on('table_state', function(msg){
             $('div.msg_innr').html(
