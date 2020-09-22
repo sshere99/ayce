@@ -1,4 +1,4 @@
-      var socket = io.connect('http://' + document.domain + ':' + location.port);
+      var socket = io.connect('http://' + document.domain + ':' + location.port, { query: 'tbl='+location.pathname });
 
       socket.on( 'connect', function() {
                 
@@ -42,11 +42,16 @@
       })
 
         socket.on('output', function(msg){
-            $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg+'</b> '+msg+'</div>' )
+            $( 'div.message_holder' ).append( '<div><b style="color:white">'+msg+'</b> ')
+          });
+
+        socket.on('output_alert', function(msg){
+            alert(msg);
           });
 
         socket.on('online', function(msg){
-            $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg+'</b> '+msg+'</div>' )
+        //    $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg )
+            $('div.msg_innr').html($('<span/>', {text: msg}))
             $("#main_user_panel").show();
           });
 

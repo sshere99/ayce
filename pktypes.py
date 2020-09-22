@@ -408,6 +408,7 @@ class Table:
     def __init__(self, maxseats):
         self.tableId=1
         self.online=False
+        self.paused=True
         self.MINPLAYERS = 3 #min number of seated players
         self.deck=Deck()
         self.playersInLobby=[]
