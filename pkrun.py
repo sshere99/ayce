@@ -16,15 +16,18 @@ clients = []
 t1 = Table(10)
 t2 = Table(10)
 t3 = Table(10)
+t1.socketio = socketio
+t2.socketio = socketio
+t3.socketio = socketio
 tables = {'table1':t1,'table2':t2,'table3':t3}
 
-Joe_ = Player('Joe_', 'Joe', bank=44, stack=500)
-Fred_ = Player('Fred_', 'Fred', bank=44, stack=100)
-Willis_ = Player('Willis_', 'willis', bank=44, stack=1000)
-Sally_ = Player('Sally_', 'Sally', bank=44, stack=1800)
-Lucy_ = Player('Lucy_', 'Lucy', bank=44, stack=1600)
-Patty_ = Player('Patty_', 'Patty', bank=44, stack=1000)
-players = {'Joe_':Joe_, 'Sally':Sally_, 'Fred_':Fred_, 'Willis_':Willis_, 'Patty_':Patty_}
+Joe_ = Player('Joe_', 'Joe_', bank=44, stack=500)
+Fred_ = Player('Fred_', 'Fred_', bank=44, stack=100)
+Willis_ = Player('Willis_', 'Willis_', bank=44, stack=1000)
+Sally_ = Player('Sally_', 'Sally_', bank=44, stack=1800)
+Lucy_ = Player('Lucy_', 'Lucy_', bank=44, stack=1600)
+Patty_ = Player('Patty_', 'Patty_', bank=44, stack=1000)
+players = {'Joe_':Joe_, 'Sally_':Sally_, 'Fred_':Fred_, 'Willis_':Willis_, 'Patty_':Patty_}
 
 print("STARTING SERVER!!!!!!!")
 
@@ -65,17 +68,15 @@ def seat_user(user_ID, tableID):
     if user_ID in players.keys():
         player = players[user_ID]
         t = tables[tableID]
-        t.addPlayerToLobby(Joe_)
+        t.addPlayerToLobby(player)
+        player.sitDown()
         socketio.emit('seat_user', user_ID, room=user_ID)
+        plyrs=[p.playname for p in t.seatedPlayers]
+        socketio.emit('output', 'Seated Players:\n'+str(plyrs), room=tableID)
+        socketio.emit('add_user_to_table', {'usrnam':user_ID, 'seatnum':player.seatNum}, room=tableID)
     else:
         socketio.emit('output_alert', 'USER ID NOT RECOGNIZED', room=user_ID)
               
-def send_message_to_room(tableID, data):
-    socketio.emit('output', data, room=room_id)
-    
-def send_message_to_client(usrID, data):
-    socketio.emit('output', data, room=usrID)  
-    
 @socketio.on('start pause')
 def handle_start_game_event(json, methods=['GET', 'POST']):
     tab_state = str(json['message'])
@@ -84,8 +85,8 @@ def handle_start_game_event(json, methods=['GET', 'POST']):
     t = tables[tblID]
     if tab_state=='online':
         t.online = True
+        t.paused = True
         socketio.emit('online', 'ONLINE', room=tblID)
-        run_game(request.sid, t)
     elif tab_state=='pause':
         t.online = True
         t.paused = True
@@ -93,11 +94,12 @@ def handle_start_game_event(json, methods=['GET', 'POST']):
     elif tab_state=='deal':
         t.online = True
         t.paused = False
-        socketio.emit('online', 'DEAL', room=tblID)          
+        socketio.emit('online', 'DEAL', room=tblID) 
+        run_game(request.sid, t)
     else:
         t.online = False
         t.paused = True
-        socketio.emit('output', 'OFFLINE', room=tblID)
+        socketio.emit('offline', 'OFFLINE', room=tblID)
     
 @socketio.on('sit stand')
 def handle_stand(json, methods=['GET', 'POST']):
@@ -109,16 +111,12 @@ def messageReceived(methods=['GET', 'POST']):
     print('message was received!!!')
     
 def run_game(client_id, t):
-    t.addPlayerToLobby(Joe_)
-    t.addPlayerToLobby(Fred_)
-    t.addPlayerToLobby(Willis_)
-
-    for player in t.playersInLobby:
-        player.sitDown()
-
-    t.socketio = socketio
-    t.startGame()
-    pot, small, big = t.startNewHand()
+    while t.online and not t.paused:
+        t.startGame()
+        if not t.paused:
+            pot, small, big = t.startNewHand()
+            t.pushTableState()
+            t.paused = True
     
     
 if __name__ == '__main__':

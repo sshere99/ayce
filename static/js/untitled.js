@@ -55,6 +55,12 @@
             $("#main_user_panel").show();
           });
 
+        socket.on('offline', function(msg){
+        //    $( 'div.message_holder' ).append( '<div><b style="color: #000">'+msg )
+      //      $('div.msg_innr').html($('<span/>', {text: msg}))
+            $("#main_user_panel").hide();
+          });
+
         socket.on('seat_user', function(msg){
           $("div.formholder").hide();  
           $( 'div.userinfo' ).html(
@@ -62,6 +68,13 @@
             ' you are seated<br /><br />'
           )
             $("#sit_stand2").show();
+          });
+
+        socket.on('add_user_to_table', function(msg){
+            $('div.msg_innr').html(
+                $('<span/>', {text: 'Some text'+msg.usrnam+' seat num '+msg.seatnum})
+                )
+            
           });
      
        socket.on('table_state', function(msg){

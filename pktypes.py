@@ -3,7 +3,16 @@ import logging
 import csv
 from pkhands import *
 
-logging.basicConfig(level=logging.ERROR)
+#logging.basicConfig(level=logging.ERROR)
+log_format = "%(asctime)s::%(levelname)s::%(name)s::"\
+             "%(filename)s::%(lineno)d::%(message)s"
+logging.basicConfig(filename='mylogs.log', filemode='w', level='DEBUG', format=log_format)
+logging.debug("This is a debug message")
+logging.info("This is an informational message")
+logging.warning("Careful! Something does not look right")
+logging.error("You have encountered an error")
+logging.critical("You are in trouble")
+
 
 myd = {'8s': '<div class="card-tiny"><p class="card-texttiny black">8</p><p class="card-imgtiny black">&spades;</p></div>',
        '8h': '<div class="card-tiny"><p class="card-texttiny red">8</p><p class="card-imgtiny red">&hearts;</p></div>',
@@ -421,6 +430,12 @@ class Table:
         self.startingPlayer=None  
         self.bettingRound=0 #1 = preflop, 2=flop, 3=turn, 4=river
         self.communityCards=[]
+        self.tableState = {'val1': 'STARTING', 
+            'box1': myd['8h']+myd['8h']+pTxt('checQ'), 
+            'box5': myd['facedown']+pTxt('check10Q'),
+            'box4': myd['facedown']+pTxt('check2Q'),
+             }
+        
       
     @property
     def occupiedSeatNums(self):
@@ -443,11 +458,19 @@ class Table:
     @property
     def bigBlindPlayer(self):
         return self.getNextSeatedPlayer(self.smallBlindPlayer) 
+    
+    def pushTableState(self):
+        if self.socketio:
+            for player in self.seatedPlayers:
+                self.socketio.emit('table_state', self.tableState, room=player.playname)
         
     def startGame(self):
         self.online=True
         if(len(self.occupiedSeatNums))<self.MINPLAYERS:
+            if self.socketio:
+                self.socketio.emit('output_alert', 'Need at least 3 seated players to start')
             logging.info("Need at least 3 seated players to start")
+            self.paused=True
             return
         self.buttonSeatNum = self.occupiedSeatNums[-1]  #Button will move to first seat when round is reset
         return
