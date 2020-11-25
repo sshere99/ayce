@@ -3,6 +3,7 @@ from flask import Flask, render_template, jsonify
 from flask import request
 from flask_socketio import SocketIO, join_room, leave_room
 import pktypes
+from flask_cors import CORS
 from pktypes import *
 from pkhands import *
 import eventlet
@@ -10,7 +11,17 @@ eventlet.monkey_patch()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'vnkdjnfjknfl1232#'
-socketio = SocketIO(app)
+CORS(app, resources={r'/*': {'origins': '*'}})
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
+socketio = SocketIO(app, cors_allowed_origins="*")
+#socketio = SocketIO(app)
 connected = False
 clients = []
 t1 = Table(10)
@@ -29,11 +40,26 @@ Lucy_ = Player('Lucy_', 'Lucy_', bank=44, stack=1600)
 Patty_ = Player('Patty_', 'Patty_', bank=44, stack=1000)
 players = {'Joe_':Joe_, 'Sally_':Sally_, 'Fred_':Fred_, 'Willis_':Willis_, 'Patty_':Patty_}
 
+rooms = [{'actions': {'bet': False, 'check': False},
+  'amount': 0,
+  'dealer': False,
+  'noOfPlayers': 0,
+  'online': True,
+  'options': {'amount': 20000, 'bigBlind': 10, 'smallBlind': 5},
+  'players': [],
+  'tableID': 'Poker table 1',
+  'tablePot': 0}]
+
+
 print("STARTING SERVER!!!!!!!")
 
 @app.route('/')
 def sessions():
     return render_template('session3.html')
+
+@app.route('/admin')
+def admin():
+    return "Hi"
 
 @app.route('/<tableURI>')
 def table(tableURI):
@@ -50,6 +76,7 @@ def handle_connect():
     print(tbl)
     join_room(tbl.strip('/'))
     clients.append(request.sid)
+    socketio.emit('rooms', rooms)
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -63,6 +90,11 @@ def on_join(data):
     tableID=data['tabId']
     join_room(user_ID)
     seat_user(user_ID, tableID)
+    
+@socketio.on('joinTable')
+def on_join_vue(data):
+    print("CONNECTED")
+    socketio.emit('joined', rooms[0])
 
 def seat_user(user_ID, tableID):
     if user_ID in players.keys():
