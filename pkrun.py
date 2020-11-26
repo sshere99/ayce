@@ -46,7 +46,8 @@ rooms = [{'actions': {'bet': False, 'check': False},
   'noOfPlayers': 0,
   'online': True,
   'options': {'amount': 20000, 'bigBlind': 10, 'smallBlind': 5},
-  'players': [],
+  'players': [{'table': 1, 'seat': 2, 'name': "mate", 'amount': 2000 },
+              { 'table': 1, 'seat': 1, 'name': "pero", 'amount': 2320 },],
   'tableID': 'Poker table 1',
   'tablePot': 0}]
 
@@ -94,7 +95,30 @@ def on_join(data):
 @socketio.on('joinTable')
 def on_join_vue(data):
     print("CONNECTED")
-    socketio.emit('joined', rooms[0])
+    socketio.emit('joined', rooms[0])    
+    
+@socketio.on('initDeal')
+def on_deal(data):
+    print("\n\n\n DEAL!!!!")
+    #cards = [{ card: "diamond_queen", color: 'black' 
+    cards = ["diamond_queen", "club_3"]
+    socketio.emit('getCards', cards)
+    
+@socketio.on('seatRequest')
+def on_seatrequest(data):
+    print("\n\n\n SEAT REQEUST. payload is ....")
+    print(data)
+    tableID = data['id']
+    seatNum = data['seat']
+    userName = data['userName']
+    print(str(tableID) + str(seatNum) + str(userName))
+    currentPlayer = {'seat': seatNum, 'name': userName,'amount': 2000, 'pot': 0,'dealer': False, 'status': "hold", 'table': 1}
+    rooms[0]['players'].append(currentPlayer)
+    #{'id': 'Poker table 1', 'seat': 5, 'userName': 'zdfsdf'}
+    #cards = [{ card: "diamond_queen", color: 'black' 
+    socketio.emit('seated', currentPlayer)
+    socketio.emit('tableStateChange', rooms[0])
+    
 
 def seat_user(user_ID, tableID):
     if user_ID in players.keys():
