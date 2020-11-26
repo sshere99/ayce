@@ -3,13 +3,26 @@ import logging
 import csv
 from pkhands import *
 
-logging.basicConfig(level=logging.ERROR)
+#logging.basicConfig(level=logging.ERROR)
+log_format = "%(asctime)s::%(levelname)s::%(name)s::"\
+             "%(filename)s::%(lineno)d::%(message)s"
+#logging.basicConfig(filename='mylogs.log', filemode='w', level='DEBUG', format=log_format)
+logging.basicConfig(level='DEBUG')
+logging.debug("This is a debug message")
+logging.info("This is an informational message")
+logging.warning("Careful! Something does not look right")
+logging.error("You have encountered an error")
+logging.critical("You are in trouble")
+
 
 myd = {'8s': '<div class="card-tiny"><p class="card-texttiny black">8</p><p class="card-imgtiny black">&spades;</p></div>',
        '8h': '<div class="card-tiny"><p class="card-texttiny red">8</p><p class="card-imgtiny red">&hearts;</p></div>',
        'facedown': '<div class="card-facedown"></div><div class="card-facedown"></div>'
       }
 pTxt = lambda x : '<p class="player-text black">'+str(x)+'</p>'
+
+def messageReceived(methods=['GET', 'POST']):
+    print('message was received!!!')
 
 class Card:
 
@@ -285,31 +298,54 @@ class Player:
         if self.folded or self.allIn:
             logging.debug("Player "+self.playname+" has already folded or is all in")
             return
+        validBetOptions = self.getBettingOptions(pot)
         amount=0
         noAction = False
         allInAmt = self.getAllInAmt()
         if not pot.bets:   # No previous bets
             noAction = True
-            logging.info("Check to you, "+self.playname+". Raise or Check"+" all in amt is "+str(allInAmt))
+            logging.info("Check to you, "+self.playname+". Options are: "+str(validBetOptions)+" all in amt is "+str(allInAmt))
         else:
             minRaise = self.getMinRaise(pot)
-            lgmsg = "Raised to "+self.playname+". Fold, Call or Raise. Min Raise is "
-            lgmsg+=str(minRaise)+" all in amt is "+str(self.getAllInAmt())
+            lgmsg = "Raised to "+self.playname+". OPtions are: "+str(validBetOptions)+" Min Raise is "
+            lgmsg+=str(minRaise)+" all in amt is "+str(self.getAllInAmt())+"\n STACK IS: "+str(self.stack)
             logging.info(lgmsg) 
         if Player.TEST_simulate:
             simact = tuple(Player.TEST_simvals.pop(0))
             action, amount = simact
+            print("Player: "+str(self.playname)+" action: "+str(action)+" amt: "+str(amount))
         else:
             action, amount = input("Enter action and amount: ").split() 
         logging.info("\n\n"+self.playname+" decides to "+str(action)+" "+str(amount))
         decision = getattr(self, action)
+        if int(amount)>int(allInAmt):
+            amount=allInAmt
+            logging.info(self.playname+" can't raise more than their stack- setting raise to "+str(allInAmt))
         decision(int(amount), pot)
         logging.debug("\n STACK: "+str(self.stack)+"\n VALUE IN HAND: "+str(self.valueInRnd)+"\n*** POT *****\n\n\n\n")
         logging.debug(pot)
         return
         
+    def getBettingOptions(self, pot):
+        bettingOptions = []
+        allInAmt = self.getAllInAmt()
+        if not pot.bets:
+            bettingOptions.extend(["Fold", "Check", "Bet"])
+        else:
+            incrementalToBetter = 0
+            for upstreamBet in pot.bets:
+                if self not in upstreamBet.callers:
+                    incrementalToBetter += upstreamBet.incrementAmt
+            if incrementalToBetter > self.stack:
+                bettingOptions.extend(["Fold", "Call AllIn"])
+            else:
+                bettingOptions.extend(["Fold", "Call", "Raise"])
+        return bettingOptions
+    
     def Raise(self, betAmount, pot):
         self.Call(0, pot)  # Call previous bets
+        if self.allIn is True:
+            return
         upstreamBetAmt = self.getUpstreamBetAmt(pot)
         logging.debug("RAISING")
         incrementalBet = betAmount - upstreamBetAmt
@@ -335,6 +371,7 @@ class Player:
                         logging.debug("CREATE SIDE POT")
                         logging.debug("Upstream Bet amt: "+str(upstreamBetAmt)+" stack: "+str(self.stack))
                         self.allIn=True
+                        logging.debug("\n+++++++++\nPLAYER IS ALL IN")
                         pot.createSidePotBet(upstreamBet, self)  
                         return
                     else:
@@ -405,6 +442,7 @@ class Table:
     def __init__(self, maxseats):
         self.tableId=1
         self.online=False
+        self.paused=True
         self.MINPLAYERS = 3 #min number of seated players
         self.deck=Deck()
         self.playersInLobby=[]
@@ -413,9 +451,16 @@ class Table:
         self.openSeatNums=list(range(maxseats))  #Unordered list of open seat numbers. Starts at 0
         self.buttonSeatNum=None     # Seat number for button
         self.numHands=0
+        self.socketio=None
         self.startingPlayer=None  
         self.bettingRound=0 #1 = preflop, 2=flop, 3=turn, 4=river
         self.communityCards=[]
+        self.tableState = {'val1': 'STARTING', 
+            'box1': myd['8h']+myd['8h']+pTxt('checQ'), 
+            'box5': myd['facedown']+pTxt('check10Q'),
+            'box4': myd['facedown']+pTxt('check2Q'),
+             }
+        
       
     @property
     def occupiedSeatNums(self):
@@ -438,11 +483,19 @@ class Table:
     @property
     def bigBlindPlayer(self):
         return self.getNextSeatedPlayer(self.smallBlindPlayer) 
+    
+    def pushTableState(self):
+        if self.socketio:
+            for player in self.seatedPlayers:
+                self.socketio.emit('table_state', self.tableState, room=player.playname)
         
     def startGame(self):
         self.online=True
         if(len(self.occupiedSeatNums))<self.MINPLAYERS:
+            if self.socketio:
+                self.socketio.emit('output_alert', 'Need at least 3 seated players to start')
             logging.info("Need at least 3 seated players to start")
+            self.paused=True
             return
         self.buttonSeatNum = self.occupiedSeatNums[-1]  #Button will move to first seat when round is reset
         return
@@ -481,10 +534,10 @@ class Table:
         newLobbyList = [p for p in self.playersInLobby if not p.usrId == playerToRemove.usrId]
         self.playersInLobby = newPlayerList
         
-    def startNewHand(self, socketio):
+    def startNewHand(self):
         logging.debug("New HAND")
-        if socketio:
-            socketio.emit('output', 'NEW HAND START')
+        if self.socketio:
+            self.socketio.emit('output', 'NEW HAND START')
         self.bettingRound=0
         if(len(self.occupiedSeatNums))<self.MINPLAYERS:
             logging.warning("Need at least 3 seated players to start")
@@ -565,8 +618,21 @@ class Table:
         return
     
     def printPlayerHands(self):
+        rsp={'val1': 'WORKING'}
         for _, player in self.seatedPlayersDict.items():
             print("Player "+player.playname+" hand is "+str(player.humanReadableHand))
+            pkey = "box"+str(player.seatNum)
+            rsp[pkey] = myd['8h']+myd['8s']+pTxt(player.playname)
+        
+        rsp2 = {'val1': 'NUM2', 
+            'box1': myd['8h']+myd['8h']+pTxt('checQ'), 
+            'box5': myd['facedown']+pTxt('check10Q'),
+            'box4': myd['facedown']+pTxt('check2Q'),
+             }
+        
+        if self.socketio:
+            self.socketio.emit('table_state', rsp, room='Joe_', callback=messageReceived)
+            self.socketio.emit('table_state', rsp2, room='Willis_')  ## SEND SPECIFIC CARD VIEW TO DIFFERENT ROOMS
             
     def moveBtton(self):
         self.buttonSeatNum = self.getNextSeatNum(self.buttonSeatNum)
@@ -610,6 +676,6 @@ class Table:
         return resp
     
 
+
     
-    
-                
+             

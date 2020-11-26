@@ -10,34 +10,50 @@
       
 <div class="split left">
    <div class="main">
-    <button type="button" id="start_game">Start / Pause Game</button>
-      
-    <h3 style='color: white;font-size: 20px;'>Bank Balance:</h3>
-    <div class="balance_holder"></div>
-       
-    <h3 style='color: white;font-size: 20px;'>Balance At Table:</h3>
-    <div class="balance_holder"></div>
-    <h2 style='color: white;font-size: 20px;'>enter name and table to join</h2>
-    <form action="" method="POST">
-      <input type="text" class="username" placeholder="User Name"/>
-      <input type="text" class="tableid" placeholder="TableID"/>
-      <input type="submit"/>
+ 
+    <div id="tblURI" style='color: white;font-size: 20px;'>{{ tableURI }}</div>
+     <br /> 
+    <form>
+         <select id="tablestate">
+         <option disabled selected value> -- select option for table -- </option>
+          <option value="online">Table Online</option>
+          <option value="offline">Table Offline</option>
+          <option value="deal">Begin Action</option>
+          <option value="pause">Pause Action</option>
+        </select>
     </form>
+    <br />
+    <div id='main_user_panel'>
+            <div class='userinfo'></div>
+            <button type="button" id="sit_stand2">Leave Seat and Quit</button><br />
+            <div class='formholder' style='color: white;font-size: 15px;'> 
+                <h2>Enter username to sit at table</h2>
+                <form action="" method="POST">
+                  <input type="text" class="username" placeholder="User Name"/>
+                  <input type="submit"/>
+                </form>
+            </div>
+            <br />
 
-    <div class="message_holder"> 
-    </div>  
-       
-    <div class="table_holder">
-        <div class="msg_innr" style='color: white;font-size: 20px;'>
-            dd
-        </div>   
-    </div>   
-       
-    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.min.js"></script>
-    <script src="{{ url_for('static', filename='js/untitled.js') }}"></script>
 
+                <input type="checkbox" name="favorite_pet" value="Cats">Sit Out Temporarily<br>                       
+            <br /> <br />  
+
+            <div class="message_holder"> 
+            </div>  
+
+            <br /> 
+            <div class="table_holder">
+                <div class="msg_innr" style='color: white;font-size: 20px;'>
+                    placehold for text from server
+                </div>   
+            </div>   
+
+            <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.min.js"></script>
+            <script src="{{ url_for('static', filename='js/untitled.js') }}"></script>
+       </div>  <!--  end of main_user_panel -->
      </div>    <!--  end of main --> 
   </div>    <!--  end of split left --> 
       
@@ -75,24 +91,18 @@
       </div> 
     <div class="box five">
          <img src="{{ url_for('static', filename='img_avatar.png') }}" alt="Avatar" class="circl1">
-         <p class="player-text black">User name 3</p> 
          <div class="pokerchip iso red five"></div>
-        <div class="card-facedown"></div>
-        <div class="card-facedown"></div>
+        <div id="bfive"></div>
       </div> 
     <div class="box six">
          <img src="{{ url_for('static', filename='img_avatar.png') }}" alt="Avatar" class="circl1">
-         <p class="player-text black">hello</p> 
          <div class="pokerchip iso red six"></div>
-        <div class="card-facedown"></div>
-        <div class="card-facedown"></div>
+            <div id="bsix"></div>
       </div> 
     <div class="box seven">
          <img src="{{ url_for('static', filename='img_avatar.png') }}" alt="Avatar" class="circl1">
-         <p class="player-text black">hello</p> 
          <div class="pokerchip iso red seven"></div>
-        <div class="card-facedown"></div>
-        <div class="card-facedown"></div>
+            <div id="bseven"></div>
       </div> 
     <div class="box eight">
          <img src="{{ url_for('static', filename='img_avatar.png') }}" alt="Avatar" class="circl1">
