@@ -24,13 +24,13 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 #socketio = SocketIO(app)
 connected = False
 clients = []
-t1 = Table(10)
-t2 = Table(10)
-t3 = Table(10)
+t1 = Table(10,'AYCEtable')
+t2 = Table(10,'TestTable')
+t3 = Table(10,'ShazoosTable')
 t1.socketio = socketio
 t2.socketio = socketio
 t3.socketio = socketio
-tables = {'table1':t1,'table2':t2,'table3':t3}
+tables = {'AYCEtable':t1,'TestTable':t2,'ShazoosTable':t3}
 
 Joe_ = Player('Joe_', 'Joe_', bank=44, stack=500)
 Fred_ = Player('Fred_', 'Fred_', bank=44, stack=100)
@@ -40,85 +40,116 @@ Lucy_ = Player('Lucy_', 'Lucy_', bank=44, stack=1600)
 Patty_ = Player('Patty_', 'Patty_', bank=44, stack=1000)
 players = {'Joe_':Joe_, 'Sally_':Sally_, 'Fred_':Fred_, 'Willis_':Willis_, 'Patty_':Patty_}
 
-rooms = [{'actions': {'bet': False, 'check': False},
-  'amount': 0,
-  'dealer': False,
-  'noOfPlayers': 0,
-  'online': True,
-  'options': {'amount': 20000, 'bigBlind': 10, 'smallBlind': 5},
-  'players': [{'table': 1, 'seat': 2, 'name': "mate", 'amount': 2000 },
-              { 'table': 1, 'seat': 1, 'name': "pero", 'amount': 2320 },],
-  'tableID': 'Poker table 1',
-  'tablePot': 0}]
+room_dict = {}
+
+#room_dict['table1'] = {'actions': {'bet': False, 'check': False},
+#  'amount': 0,
+#  'dealer': False,
+#  'noOfPlayers': 0,
+#  'online': True,
+#  'options': {'amount': 20000, 'bigBlind': 10, 'smallBlind': 5},
+#  'players': [{'table': 1, 'seat': 2, 'name': "mate", 'amount': 2000, 'status': 'hold' },
+#              { 'table': 1, 'seat': 1, 'name': "pero", 'amount': 2320, 'status': 'hold' },],
+#  'tableID': 'table1',
+#  'tablePot': 0}
+
+room_dict['AYCEtable'] = t1.tableState
+room_dict['TestTable'] = {'tableID': 'TestTable', 'online': True,}
+room_dict['ShazoosTable'] = {'tableID': 'ShazoosTable', 'online': True,}
 
 
 print("STARTING SERVER!!!!!!!")
-
-@app.route('/')
-def sessions():
-    return render_template('session3.html')
-
-@app.route('/admin')
-def admin():
-    return "Hi"
-
-@app.route('/<tableURI>')
-def table(tableURI):
-    if tableURI in tables:
-        return render_template('session3.html', tableURI=tableURI)
-    else:
-        return render_template('err.html')
     
 @socketio.on('connect')
 def handle_connect():
     connected = True
     print('Client connected'+' ID IS: '+str(request.sid))
-    tbl = str(request.args.get('tbl'))
-    print(tbl)
-    join_room(tbl.strip('/'))
     clients.append(request.sid)
-    socketio.emit('rooms', rooms)
+    roomList = [room_dict[x] for x in room_dict.keys()]
+    socketio.emit('roomList', roomList)
+    
+@socketio.on('joinTable')
+def on_join_vue(tableID):
+    print("CONNECTED \n\n\n table is - "+str(tableID))
+    join_room(tableID)
+    room = room_dict[tableID]
+    socketio.emit('joined', room) 
 
 @socketio.on('disconnect')
 def handle_disconnect():
     print('Client disconnected')
     clients.remove(request.sid)
-
-@socketio.on('join')
-def on_join(data):
-    user_ID = data['urname']
-    print('\n\n\n\n CID'+str(request.sid))
-    tableID=data['tabId']
-    join_room(user_ID)
-    seat_user(user_ID, tableID)
     
-@socketio.on('joinTable')
-def on_join_vue(data):
-    print("CONNECTED")
-    socketio.emit('joined', rooms[0])    
+@socketio.on('seatRequest')
+def on_seatrequest(data):
+    print("\n\n\n SEAT REQEUST. payload is ...."+str(data))
+    # Get information
+    tableID = data['id']
+    seatNum = data['seat']
+    userName = data['userName']
+    thisRoom = room_dict[tableID]
+    t = tables[tableID]
+    
+    #Create player and add to table
+    newPlayer = Player(userName, userName, bank=44, stack=1000)
+    t.addPlayerToLobby(newPlayer)
+    newPlayer.sitDown(seatNum)
+    #playerData = {'seat': seatNum, 'name': userName,'amount': newPlayer.stack, 'pot': 0,'dealer': False, 
+    #                 'status': "hold", 'table': 1,}
+    thisRoom['players'].append(newPlayer.playerInfo)
+    socketio.emit('seated', newPlayer.playerInfo)
+    socketio.emit('tableStateChange', thisRoom)
+    
+@socketio.on('pauseGame')
+def pause_game(tblID):
+    t = tables[tblID]
+    t.pauseGame()
+    
+@socketio.on('resumeGame')
+def resume_game(tblID):
+    t = tables[tblID]
+    t.resumeGame()
+    
+@socketio.on('startGame')
+def on_start(tblID):
+    print("\n\n\n BUILD THIS FUNCTION")
+    t = tables[tblID]
+    t.startGame()
+    ## ADD LOGIC HERE
+
+    
+##################################################
+
+#{'id': 'Poker table 1', 'seat': 5, 'userName': 'zdfsdf'}
+#cards = [{ card: "diamond_queen", color: 'black' 
+
+#@socketio.on('join')
+#def on_join(data):
+#    user_ID = data['urname']
+#    print('\n\n\n\n CID'+str(request.sid))
+#    tableID=data['tabId']
+#    join_room(user_ID)
+#    seat_user(user_ID, tableID)
+
     
 @socketio.on('initDeal')
 def on_deal(data):
     print("\n\n\n DEAL!!!!")
     #cards = [{ card: "diamond_queen", color: 'black' 
-    cards = ["diamond_queen", "club_3"]
-    socketio.emit('getCards', cards)
+    tableID = data['tableID']
+    mycards = [{ 'card': "diamond_queen", 'color': "red" }, { 'card': "club_1", 'color': "black" }]
+    mycardsflop = [{ 'card': "diamond_queen", 'color': "red" }, { 'card': "club_1", 'color': "black" }, 
+                   { 'card': "club_1", 'color': "black" }]
+    socketio.emit('initDeal', mycards)
+    socketio.emit('flopDeal', mycardsflop)
+    updateAllPlayerStatus('play', tableID)
+    socketio.emit('tableStateChange', room_dict[tableID])
     
-@socketio.on('seatRequest')
-def on_seatrequest(data):
-    print("\n\n\n SEAT REQEUST. payload is ....")
-    print(data)
-    tableID = data['id']
-    seatNum = data['seat']
-    userName = data['userName']
-    print(str(tableID) + str(seatNum) + str(userName))
-    currentPlayer = {'seat': seatNum, 'name': userName,'amount': 2000, 'pot': 0,'dealer': False, 'status': "hold", 'table': 1}
-    rooms[0]['players'].append(currentPlayer)
-    #{'id': 'Poker table 1', 'seat': 5, 'userName': 'zdfsdf'}
-    #cards = [{ card: "diamond_queen", color: 'black' 
-    socketio.emit('seated', currentPlayer)
-    socketio.emit('tableStateChange', rooms[0])
     
+def updateAllPlayerStatus(newStatus, tableID):
+    for p in room_dict[tableID]['players']:
+        p['status']=newStatus
+    return
 
 def seat_user(user_ID, tableID):
     if user_ID in players.keys():
@@ -162,7 +193,13 @@ def handle_stand(json, methods=['GET', 'POST']):
     print('received STAND REQUEST')
     print(json.keys())
     ##socketio.emit('my response', json, callback=messageReceived)
-    
+
+#def getRoomDict(tableID):
+#    for r in rooms:
+#        if r['tableID'] == tableID:
+#            return r
+#    print('\n\n\n\ERROR TABLE NOT FOUND')
+
 def messageReceived(methods=['GET', 'POST']):
     print('message was received!!!')
     

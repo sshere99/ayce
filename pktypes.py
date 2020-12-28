@@ -15,11 +15,11 @@ logging.error("You have encountered an error")
 logging.critical("You are in trouble")
 
 
-myd = {'8s': '<div class="card-tiny"><p class="card-texttiny black">8</p><p class="card-imgtiny black">&spades;</p></div>',
-       '8h': '<div class="card-tiny"><p class="card-texttiny red">8</p><p class="card-imgtiny red">&hearts;</p></div>',
-       'facedown': '<div class="card-facedown"></div><div class="card-facedown"></div>'
-      }
-pTxt = lambda x : '<p class="player-text black">'+str(x)+'</p>'
+#myd = {'8s': '<div class="card-tiny"><p class="card-texttiny black">8</p><p class="card-imgtiny black">&spades;</p></div>',
+#       '8h': '<div class="card-tiny"><p class="card-texttiny red">8</p><p class="card-imgtiny red">&hearts;</p></div>',
+#       'facedown': '<div class="card-facedown"></div><div class="card-facedown"></div>'
+#      }
+#pTxt = lambda x : '<p class="player-text black">'+str(x)+'</p>'
 
 def messageReceived(methods=['GET', 'POST']):
     print('message was received!!!')
@@ -250,6 +250,7 @@ class Player:
         self.atTable=False  #Table object that player is at
         self.seated=False
         self.seatNum=None
+        self.status='hold'
         self.hand=[]
         self.folded=False
         self.valueInRnd=0 #For a given round of betting, how much the player has already invested
@@ -265,6 +266,16 @@ class Player:
     @property
     def handScore(self):
         return getHand(self.atTable.communityCards + self.hand)
+    
+    @property
+    def playerInfo(self):
+        if self.atTable:
+            tableID = self.atTable.tableId
+        else:
+            tableID = None
+        info = {'seat': self.seatNum, 'name': self.usrId, 'amount': self.stack, 'pot': 0,'dealer': False, 
+                     'status': self.status, 'table': tableID,}
+        return info
     
     def addCardToHand(self, card):
         self.hand.append(card)
@@ -405,10 +416,10 @@ class Player:
             if self not in bet.callers:
                 bet.addCaller(self)
     
-    def sitDown(self):
+    def sitDown(self, seatNum):
         if self.atTable:
             self.seated=True
-            seatNum = self.atTable.seatPlayer(self)
+            self.atTable.seatPlayerAtNumber(self, seatNum)
             self.seatNum = seatNum
         else:
             logging.warning("Need to be in the lobby first")
@@ -439,8 +450,8 @@ class Table:
     
     BLINDS=[10,20]
     
-    def __init__(self, maxseats):
-        self.tableId=1
+    def __init__(self, maxseats, tableId):
+        self.tableId=tableId
         self.online=False
         self.paused=True
         self.MINPLAYERS = 3 #min number of seated players
@@ -448,20 +459,15 @@ class Table:
         self.playersInLobby=[]
         self.seatedPlayersDict={} #key is seatnumber, value is player object
         self.maxseats=maxseats
-        self.openSeatNums=list(range(maxseats))  #Unordered list of open seat numbers. Starts at 0
+        self.openSeatNums=list(range(1,maxseats+1))  #Unordered list of open seat numbers. Starts at 0
         self.buttonSeatNum=None     # Seat number for button
         self.numHands=0
         self.socketio=None
         self.startingPlayer=None  
         self.bettingRound=0 #1 = preflop, 2=flop, 3=turn, 4=river
         self.communityCards=[]
-        self.tableState = {'val1': 'STARTING', 
-            'box1': myd['8h']+myd['8h']+pTxt('checQ'), 
-            'box5': myd['facedown']+pTxt('check10Q'),
-            'box4': myd['facedown']+pTxt('check2Q'),
-             }
-        
-      
+        self.tableState = {'online': True, 'tableID': tableId}
+         
     @property
     def occupiedSeatNums(self):
         seatnums = list(self.seatedPlayersDict.keys())
@@ -484,6 +490,26 @@ class Table:
     def bigBlindPlayer(self):
         return self.getNextSeatedPlayer(self.smallBlindPlayer) 
     
+    def updateTableState(self):
+        if self.tableId == 'AYCEtable':
+            self.tableState = {
+            'actions': {'bet': False, 'check': False},
+  'amount': 0,
+  'dealer': False,
+  'noOfPlayers': 0,
+  'online': True,
+  'options': {'amount': 20000, 'bigBlind': 10, 'smallBlind': 5},
+  'players': [{'table': 1, 'seat': 2, 'name': "mate", 'amount': 2000, 'status': 'hold' },
+              { 'table': 1, 'seat': 1, 'name': "PANKAJ", 'amount': 2320, 'status': 'hold' },],
+  'tableID': tableId,
+  'tablePot': 0
+        }
+        else:
+            self.tableState['noOfPlayers'] = len(self.seatedPlayersDict)
+            self.tableState['players'] = []
+            
+        return 
+    
     def pushTableState(self):
         if self.socketio:
             for player in self.seatedPlayers:
@@ -491,6 +517,7 @@ class Table:
         
     def startGame(self):
         self.online=True
+        self.paused=False
         if(len(self.occupiedSeatNums))<self.MINPLAYERS:
             if self.socketio:
                 self.socketio.emit('output_alert', 'Need at least 3 seated players to start')
@@ -501,7 +528,12 @@ class Table:
         return
         
     def pauseGame(self):
-        pass
+        self.paused=True
+        return
+    
+    def resumeGame(self):
+        self.paused=False
+        return
         
     def endGame(self):
         pass
@@ -513,15 +545,15 @@ class Table:
             self.playersInLobby.append(playerToAdd)
             playerToAdd.atTable = self
             
-    def seatPlayer(self, playerToSeat):
+    def seatPlayerAtNumber(self, playerToSeat, seatNum):
         if self.openSeatNums:
-            seatNum = self.openSeatNums.pop()
+            self.openSeatNums.remove(seatNum) #add error check
             self.seatedPlayersDict[seatNum] = playerToSeat
-            return seatNum
+            return
         else:
             logging.info("No more seats at the table")
             return
-
+    
     def unSeatPlayer(self, playerToUnSeat):
         openSeatNum=playerToUnSeat.seatNum
         self.seatedPlayersDict.pop(openSeatNum)

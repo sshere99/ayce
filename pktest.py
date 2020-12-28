@@ -7,7 +7,7 @@ import random
 
 
 #create Table
-t = Table(10)
+t = Table(10,'test')
 joe = Player('sdff', 'Joe', bank=44, stack=1000)
 fred = Player('sdf2', 'Fred', bank=44, stack=1000)
 willis = Player('sdf3', 'willis', bank=44, stack=1000)
@@ -22,8 +22,10 @@ t.addPlayerToLobby(sally)
 t.addPlayerToLobby(lucy)
 t.addPlayerToLobby(patty)
 
+i=9
 for player in t.playersInLobby:
-    player.sitDown()
+    i-=1
+    player.sitDown(i)
     
 class TestSim1(unittest.TestCase):
     
@@ -32,7 +34,7 @@ class TestSim1(unittest.TestCase):
         Test if sim1 works
         """
         #create Table
-        t = Table(10)
+        t = Table(10,'test')
         joe = Player('sdff', 'Joe', bank=44, stack=1000)
         fred = Player('sdf2', 'Fred', bank=44, stack=1000)
         willis = Player('sdf3', 'willis', bank=44, stack=1000)
@@ -47,8 +49,10 @@ class TestSim1(unittest.TestCase):
         t.addPlayerToLobby(lucy)
         t.addPlayerToLobby(patty)
 
+        i=9
         for player in t.playersInLobby:
-            player.sitDown()
+            player.sitDown(i)
+            i-=1
         print(t)
         t.startGame()
         pot, small, big = t.startNewHand()
@@ -62,7 +66,7 @@ class TestSim1(unittest.TestCase):
         """
         Test if sim2 works
         """
-        t2 = Table(10)
+        t2 = Table(10,'test')
         joe = Player('sdff', 'Joe', bank=44, stack=1000)
         fred = Player('sdf2', 'Fred', bank=44, stack=1000)
         willis = Player('sdf3', 'willis', bank=44, stack=1000)
@@ -76,9 +80,10 @@ class TestSim1(unittest.TestCase):
         t2.addPlayerToLobby(sally)
         t2.addPlayerToLobby(lucy)
         t2.addPlayerToLobby(patty)
-
+        i=9
         for player in t2.playersInLobby:
-            player.sitDown()        
+            player.sitDown(i) 
+            i-=1
         print(t2)
         t2.startGame()
         pot2, small2, big2 = t2.startNewHand()
@@ -91,7 +96,7 @@ class TestSim1(unittest.TestCase):
         self.assertEqual(t2.startingPlayer, t2.seatedPlayersDict[6])  #confirm its Sally
              
     def test_valueInRnd(self):
-        t3 = Table(10)
+        t3 = Table(10,'test')
         joe = Player('sdff', 'Joe', bank=44, stack=1000)
         fred = Player('sdf2', 'Fred', bank=44, stack=1000)
         willis = Player('sdf3', 'willis', bank=44, stack=1000)
@@ -106,8 +111,10 @@ class TestSim1(unittest.TestCase):
         t3.addPlayerToLobby(lucy)
         t3.addPlayerToLobby(patty)
 
+        i=9
         for player in t3.playersInLobby:
-            player.sitDown()        
+            player.sitDown(i)  
+            i-=1
         print(t3)
         t3.startGame()
         pot3, small3, big3 = t3.startNewHand()
@@ -173,7 +180,7 @@ class TestSim1(unittest.TestCase):
         """
         Test if all in sim works  - ALL INS
         """
-        t1 = Table(10)
+        t1 = Table(10,'test')
         joe = Player('sdff', 'Joe', bank=44, stack=500)
         fred = Player('sdf2', 'Fred', bank=44, stack=100)
         willis = Player('sdf3', 'willis', bank=44, stack=1000)
@@ -188,8 +195,10 @@ class TestSim1(unittest.TestCase):
         t1.addPlayerToLobby(lucy)
         t1.addPlayerToLobby(patty)
 
+        i=9
         for player in t1.playersInLobby:
-            player.sitDown()
+            player.sitDown(i)
+            i-=1
         print(t)
         t1.startGame()
         pot2, small, big = t1.startNewHand()
